@@ -1,6 +1,6 @@
 import { EmbedBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 import { createCanvas } from 'canvas';
-import { getBalance, updateBalance, checkBalance } from '../utils/db.js';
+import { getBalance, updateBalance, checkBalance, consumeItem } from '../utils/db.js';
 
 const activeGames = new Map();
 
@@ -236,17 +236,35 @@ async function startRace(channel, channelId) {
   
   for (const bet of game.bets) {
     if (bet.horseIndex === winningHorse) {
-      if (!userWinning[bet.userId]) userWinning[bet.userId] = 0;
-      userWinning[bet.userId] += (bet.amount * WINNING_REWARD_MULTIPLIER) + bet.amount;
-      await updateBalance(bet.userId, bet.username, (bet.amount * WINNING_REWARD_MULTIPLIER) + bet.amount);
+      if (!userWinning[bet.userId]) userWinning[bet.userId] = { username: bet.username, amount: 0 };
+      userWinning[bet.userId].amount += (bet.amount * WINNING_REWARD_MULTIPLIER) + bet.amount;
     }
   }
   
-  for (const [userId, winAmt] of Object.entries(userWinning)) {
-    totalRewardStr += `<@${userId}> thắng **${winAmt.toLocaleString()}** coins!\n`;
+  for (const [userId, data] of Object.entries(userWinning)) {
+    let finalWin = data.amount;
+    const hasX2 = await consumeItem(userId, 'x2_reward');
+    if (hasX2) finalWin *= 2;
+    await updateBalance(userId, data.username, finalWin);
+    totalRewardStr += `<@${userId}> thắng **${finalWin.toLocaleString()}** coins! ${hasX2 ? '(Vé x2 💰)' : ''}\n`;
   }
   
-  if (totalRewardStr === '') totalRewardStr = 'Trắng tay hết ráo! Không ai cược trúng ngựa vô địch 😢';
+  const allBettors = [...new Set(game.bets.map(b => b.userId))];
+  const losers = allBettors.filter(id => !userWinning[id]);
+  
+  let rescuedStr = '';
+  for (const loserId of losers) {
+    const hasShield = await consumeItem(loserId, 'bua_mien_tu');
+    if (hasShield) {
+      const totalLost = game.bets.filter(b => b.userId === loserId).reduce((sum, b) => sum + b.amount, 0);
+      const loserName = game.bets.find(b => b.userId === loserId).username;
+      await updateBalance(loserId, loserName, totalLost);
+      rescuedStr += `🛡️ <@${loserId}> được Bùa cứu mạng, hoàn trả **${totalLost.toLocaleString()} coins**!\n`;
+    }
+  }
+
+  if (totalRewardStr === '') totalRewardStr = 'Trắng tay hết ráo! Không ai cược trúng ngựa vô địch 😢\n';
+  if (rescuedStr !== '') totalRewardStr += `\n**DANH SÁCH BẢO HỘ LƯỚI TỬ THẦN:**\n${rescuedStr}`;
   
   const attachment = drawHorseResult(winningHorse);
   

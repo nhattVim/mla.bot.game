@@ -1,5 +1,5 @@
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { getBalance, updateBalance, checkBalance } from '../utils/db.js';
+import { getBalance, updateBalance, checkBalance, consumeItem } from '../utils/db.js';
 
 export const activeOttGames = new Map();
 
@@ -257,10 +257,20 @@ async function resolveGame(gameId) {
       loser = game.challenger;
     }
     
-    // Cộng tiền x2 vô túi winner (Do lúc nãy mỗi người bị khóa cọc x1)
-    await updateBalance(winner.id, winner.name, game.amount * 2);
+    let finalWinAmt = game.amount * 2;
+    const hasX2 = await consumeItem(winner.id, 'x2_reward');
+    if (hasX2) finalWinAmt += game.amount; 
+    
+    await updateBalance(winner.id, winner.name, finalWinAmt);
 
-    resultText = `<@${game.challenger.id}>: **${cChoice.name}** ${cChoice.emoji}  💥VS💥  ${tChoice.emoji} **${tChoice.name}** :<@${game.target.id}>\n\n🏆 **Bên Thắng:** <@${winner.id}>\n💸 Lấy toàn bộ **${(game.amount * 2).toLocaleString()} coins** trên giàn khoan!`;
+    let rescuedStr = '';
+    const hasShield = await consumeItem(loser.id, 'bua_mien_tu');
+    if (hasShield) {
+      await updateBalance(loser.id, loser.name, game.amount);
+      rescuedStr = `\n\n🛡️ **CÔNG HIỆU BÙA CHÚ:** Khâm phục Bùa Miễn Tử của <@${loser.id}>, hoàn trả **${game.amount.toLocaleString()} coins** về két sắt!`;
+    }
+
+    resultText = `<@${game.challenger.id}>: **${cChoice.name}** ${cChoice.emoji}  💥VS💥  ${tChoice.emoji} **${tChoice.name}** :<@${game.target.id}>\n\n🏆 **Bên Thắng:** <@${winner.id}>\n💸 Lấy toàn bộ **${finalWinAmt.toLocaleString()} coins** trên giàn khoan! ${hasX2 ? '(Vé x2 💰)' : ''}${rescuedStr}`;
   }
 
   const finalEmbed = new EmbedBuilder()

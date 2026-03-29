@@ -5,6 +5,8 @@ import { connectDB, getBalance, claimDaily } from './utils/db.js';
 import { handleHorseRacing, handleHorseRacingInteraction } from './games/horse_racing.js';
 import { handleBauCua, handleBauCuaInteraction } from './games/baucua.js';
 import { handleOanTuTi, handleOanTuTiInteraction } from './games/oantuti.js';
+import { handleShop, handleShopInteraction, SHOP_ITEMS } from './games/shop.js';
+import { getUserInventory } from './utils/db.js';
 
 dotenv.config();
 
@@ -35,10 +37,21 @@ client.on('messageCreate', async (message) => {
   try {
     if (command === 'b') {
       const balance = await getBalance(message.author.id, message.author.username);
+      const inventory = await getUserInventory(message.author.id, message.author.username);
+
+      let titleStr = '';
+      let consumableStr = '';
+
+      if (inventory['title_vip']) titleStr = ' - ' + SHOP_ITEMS['title_vip'].emoji + ' ' + SHOP_ITEMS['title_vip'].name;
+      else if (inventory['title_tanbinh']) titleStr = ' - ' + SHOP_ITEMS['title_tanbinh'].emoji + ' ' + SHOP_ITEMS['title_tanbinh'].name;
+
+      if (inventory['bua_mien_tu']) consumableStr += `\n🛡️ Bùa Miễn Tử: **${inventory['bua_mien_tu']}** cái`;
+      if (inventory['x2_reward']) consumableStr += `\n💰 Vé Tranh Đoạt x2: **${inventory['x2_reward']}** cái`;
+
       const embed = new EmbedBuilder()
         .setColor('#2ecc71')
-        .setAuthor({ name: message.author.username, iconURL: message.author.displayAvatarURL() })
-        .setDescription(`💰 Két sắt hiện tại của VIP đang có: **${balance.toLocaleString()}** coins.`);
+        .setAuthor({ name: message.author.username + titleStr, iconURL: message.author.displayAvatarURL() })
+        .setDescription(`💰 Két sắt hiện tại của VIP đang có: **${balance.toLocaleString()}** coins.` + (consumableStr ? `\n\n**🎒 Hành Trang (Tự dụng):**${consumableStr}` : ''));
       return message.reply({ embeds: [embed] });
     }
 
@@ -67,6 +80,10 @@ client.on('messageCreate', async (message) => {
       return handleOanTuTi(message, args);
     }
 
+    if (command === 'shop' || command === 's') {
+      return handleShop(message, args);
+    }
+
     if (command === 'help') {
       const embed = new EmbedBuilder()
         .setTitle('📖 SÁCH HƯỚNG DẪN CÚ PHÁP ĐƠN GIẢN NHẤT 🎮')
@@ -76,9 +93,10 @@ client.on('messageCreate', async (message) => {
           { name: '💰 Quản Lý Ví', value: '`!b`: Xem số dư ngân hàng hiện tại của bạn.\n`!dd`: Lấy lương ngẫu nhiên 200 - 2,000 coin mỗi ngày một lần (Khôi phục lúc Nửa Đêm).', inline: false },
           { name: '🐎 Mở Chuồng Đua Ngựa', value: 'Gõ: `!dn`\n👉 Bot bung giao diện cược, chọn màu ngựa qua Nút.', inline: false },
           { name: '🎲 Lắc Bầu Cua Tôm Cá', value: 'Gõ: `!bc`\n👉 Xóc dĩa online, chọn linh vật thông qua Nút.', inline: false },
-          { name: '✌️ Thách Đấu Oẳn Tù Tì', value: 'Gõ: `!ott @TagNgườiKìa <Số_tiền>`\n👉 Kéo búa bao đẫm máu 1 vs 1. Ai thua đền trọn tiền mạng.', inline: false }
+          { name: '✌️ Thách Đấu Oẳn Tù Tì', value: 'Gõ: `!ott @TagNgườiKìa <Số_tiền>`\n👉 Kéo búa bao đẫm máu 1 vs 1. Ai thua đền trọn tiền mạng.', inline: false },
+          { name: '🏪 Mở Cửa Hàng Bách Hoá', value: 'Gõ: `!shop` hoặc `!s`\n👉 Sắm Danh Hiệu đổi Đời hiển thị (gõ `!b` để xem) kèm theo các Vật Phẩm Tiêu Hoá Tránh Tử cho Games.', inline: false }
         )
-        .setFooter({ text: 'Chú ý: Tuyệt tối không gõ dài dòng hay sai cú pháp (như !bc start nữa). Bot sẽ ngó lơ luôn đó!' });
+        .setFooter({ text: 'Chú ý: Tuyệt đối không gõ dài dòng hay sai cú pháp (như !bc start nữa). Bot sẽ ngó lơ luôn đó!' });
       return message.reply({ embeds: [embed] });
     }
   } catch (error) {
@@ -100,6 +118,10 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.customId?.startsWith('ott_')) {
       return handleOanTuTiInteraction(interaction);
+    }
+
+    if (interaction.customId?.startsWith('shopbuy_')) {
+      return handleShopInteraction(interaction);
     }
   } catch (e) {
     console.error('Interaction Error:', e);

@@ -1,3 +1,4 @@
+import http from 'http';
 import { Client, GatewayIntentBits, Partials, EmbedBuilder } from 'discord.js';
 import dotenv from 'dotenv';
 import { connectDB, getBalance } from './utils/db.js';
@@ -76,7 +77,7 @@ client.on('interactionCreate', async (interaction) => {
   } catch (e) {
     console.error('Interaction Error:', e);
     if (!interaction.replied && !interaction.deferred) {
-      await interaction.reply({ content: 'Đã xảy ra lỗi khi xử lý thao tác của bạn!', ephemeral: true }).catch(() => {});
+      await interaction.reply({ content: 'Đã xảy ra lỗi khi xử lý thao tác của bạn!', ephemeral: true }).catch(() => { });
     }
   }
 });
@@ -87,3 +88,14 @@ if (!process.env.DISCORD_TOKEN) {
 }
 
 client.login(process.env.DISCORD_TOKEN);
+
+// Khởi tạo một Web Server "giả lập" (Dummy Server)
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+  res.end('Hệ thống Discord Bot Game đang hoạt động 24/7!');
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`🌐 [Render Config] Dummy Web Server đang giữ cổng (PORT): ${PORT}`);
+});

@@ -1,38 +1,72 @@
-import fs from 'fs';
-import path from 'path';
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+dotenv.config();
 
-const DB_PATH = path.resolve(process.cwd(), 'database.json');
+let isConnected = false;
 
-// Initialize DB if not exists
-if (!fs.existsSync(DB_PATH)) {
-  fs.writeFileSync(DB_PATH, JSON.stringify({}, null, 2), 'utf8');
+// Connect to MongoDB
+export async function connectDB() {
+  if (isConnected) return;
+  
+  if (!process.env.MONGO_URI) {
+    console.warn("⚠️ Bỏ qua kết nối MongoDB! Vui lòng cung cấp MONGO_URI trong file .env để dùng tính năng Database. Bot sẽ fallback để chống crash.");
+    return;
+  }
+  
+  try {
+    const db = await mongoose.connect(process.env.MONGO_URI);
+    isConnected = db.connections[0].readyState === 1;
+    console.log("✅ Đã kết nối thành công đến hệ thống MongoDB Atlas!");
+  } catch (error) {
+    console.error("❌ Kết nối MongoDB thất bại:", error);
+  }
 }
 
-export function getBalance(userId) {
+// User Schema
+const userSchema = new mongoose.Schema({
+  userId: { type: String, required: true, unique: true },
+  username: { type: String, required: true },
+  balance: { type: Number, default: 1000 }
+});
+
+const User = mongoose.model('User', userSchema);
+
+export async function getBalance(userId, username) {
+  if (!isConnected) return 1000;
   try {
-    const data = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
-    return data[userId] !== undefined ? data[userId] : 1000; // Default 1000 coins
+    let user = await User.findOne({ userId });
+    if (!user) {
+      user = new User({ userId, username, balance: 1000 });
+      await user.save();
+    }
+    return user.balance;
   } catch (error) {
-    console.error('Error reading DB:', error);
+    console.error('Lỗi Database khi getBalance:', error);
     return 1000;
   }
 }
 
-export function updateBalance(userId, amount) {
+export async function updateBalance(userId, username, amount) {
+  if (!isConnected) return 1000;
   try {
-    const data = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
-    const currentBalance = data[userId] !== undefined ? data[userId] : 1000;
-    data[userId] = currentBalance + amount;
-    fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2), 'utf8');
-    return data[userId];
+    let user = await User.findOne({ userId });
+    // Khởi tạo nếu chưa tồn tại
+    if (!user) {
+      user = new User({ userId, username, balance: 1000 });
+    } else {
+      user.username = username; // Cập nhật tên mới lỡ có đổi
+    }
+    
+    user.balance += amount;
+    await user.save();
+    return user.balance;
   } catch (error) {
-    console.error('Error writing DB:', error);
+    console.error('Lỗi Database khi updateBalance:', error);
     return 1000;
   }
 }
 
-// Ensure the user has enough balance
-export function checkBalance(userId, amount) {
-  const balance = getBalance(userId);
+export async function checkBalance(userId, username, amount) {
+  const balance = await getBalance(userId, username);
   return balance >= amount;
 }

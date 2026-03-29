@@ -1,4 +1,4 @@
-import { EmbedBuilder, AttachmentBuilder } from 'discord.js';
+import { EmbedBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 import { createCanvas } from 'canvas';
 import { getBalance, updateBalance, checkBalance } from '../utils/db.js';
 
@@ -14,35 +14,28 @@ function drawHorseResult(winningHorseIndex) {
   const canvas = createCanvas(400, 300);
   const ctx = canvas.getContext('2d');
   
-  // Nền
   ctx.fillStyle = '#2b2d31';
   ctx.fillRect(0, 0, 400, 300);
 
-  // Bục vinh quang
-  ctx.fillStyle = '#4cd137'; // Xanh lá cây
+  ctx.fillStyle = '#4cd137'; 
   ctx.fillRect(100, 200, 200, 100);
   ctx.fillStyle = '#44bd32';
   ctx.fillRect(100, 190, 200, 10);
   
-  // Biểu tượng vô địch
   ctx.shadowColor = 'rgba(0,0,0,0.5)';
   ctx.shadowBlur = 10;
   ctx.shadowOffsetY = 5;
-  
   ctx.fillStyle = '#f1c40f';
   ctx.font = '80px sans-serif';
   ctx.textAlign = 'center';
   ctx.fillText('🏆', 200, 110);
-  
   ctx.shadowBlur = 0;
 
-  // Text chiến thắng
   const textColors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6'];
   ctx.fillStyle = textColors[winningHorseIndex];
   ctx.font = 'bold 45px sans-serif';
   ctx.fillText(`NGỰA SỐ ${winningHorseIndex + 1}`, 200, 170);
   
-  // Chấm trang trí mã ngựa
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 30px sans-serif';
   ctx.fillText('WINNER', 200, 250);
@@ -54,7 +47,7 @@ export async function handleHorseRacing(message, args) {
   const channelId = message.channel.id;
   
   if (!activeGames.has(channelId)) {
-    activeGames.set(channelId, { state: 'IDLE', bets: [] });
+    activeGames.set(channelId, { state: 'IDLE', bets: [], startMessage: null });
   }
   
   const game = activeGames.get(channelId);
@@ -71,63 +64,99 @@ export async function handleHorseRacing(message, args) {
     const endTime = Math.floor(Date.now() / 1000) + 30;
     const embed = new EmbedBuilder()
       .setTitle('🏁 TRƯỜNG ĐUA NGỰA MỞ CỬA 🏁')
-      .setDescription(`Cổng cược sẽ đóng **<t:${endTime}:R>**! Hãy dùng lệnh:\n\`!dn bet <mã ngựa 1-5> <tiền>\`\n\n*(Tỷ lệ ăn thưởng x4)*`)
-      .addFields({
-        name: 'Mã Ngựa',
-        value: '`1`: 🔴 Đỏ\n`2`: 🔵 Xanh dương\n`3`: 🟢 Xanh lục\n`4`: 🟡 Vàng\n`5`: 🟣 Tím'
-      })
+      .setDescription(`Cổng cược sẽ đóng **<t:${endTime}:R>**!\n\n*(Tỷ lệ ăn thưởng x4)*\n**Hãy bấm vào Nút của ngựa bạn muốn cược bên dưới!**`)
       .setColor('#3498db');
       
-    await message.channel.send({ embeds: [embed] });
+    // Gắn 5 Nút ứng với 5 ngựa
+    const row = new ActionRowBuilder();
+    HORSE_EMOJIS.forEach((emoji, idx) => {
+      row.addComponents(
+        new ButtonBuilder()
+          .setCustomId(`bet_horse_${idx}`)
+          .setLabel(`Số ${idx + 1}`)
+          .setEmoji(emoji)
+          .setStyle(ButtonStyle.Primary)
+      );
+    });
+
+    const startMsg = await message.channel.send({ embeds: [embed], components: [row] });
+    game.startMessage = startMsg;
     
     setTimeout(() => startRace(message.channel, channelId), 30000);
     return;
   }
 
-  if (action === 'bet') {
-    if (game.state !== 'BETTING') {
-      return message.reply('Hiện không có cuộc đua nào đang nhận cược!');
-    }
+  return message.reply('Lệnh sai, gõ `!dn start` để mở cổng cược, sau đó bấm Nút để đặt cược nhé!');
+}
 
-    const horseId = parseInt(args[1], 10);
-    const amountStr = args[2];
+// Hàm Xử lý Tương Tác từ index.js
+export async function handleHorseRacingInteraction(interaction) {
+  if (interaction.isButton()) {
+    const horseIndex = interaction.customId.split('_')[2];
+    
+    // Popup Modal Nhập Cược
+    const modal = new ModalBuilder()
+      .setCustomId(`modal_horse_${horseIndex}`)
+      .setTitle(`Cược Ngựa số ${parseInt(horseIndex) + 1} ${HORSE_EMOJIS[horseIndex]}`);
+      
+    const amountInput = new TextInputBuilder()
+      .setCustomId('amount')
+      .setLabel("Nhập số tiền (hoặc 'all' / 'allin')")
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('Ví dụ: 1000')
+      .setRequired(true);
+      
+    const firstActionRow = new ActionRowBuilder().addComponents(amountInput);
+    modal.addComponents(firstActionRow);
+    
+    await interaction.showModal(modal);
+  } else if (interaction.isModalSubmit()) {
+    const channelId = interaction.channelId;
+    if (!activeGames.has(channelId)) return interaction.reply({ content: 'Sàn đua không còn tồn tại!', ephemeral: true });
+    
+    const game = activeGames.get(channelId);
+    if (game.state !== 'BETTING') return interaction.reply({ content: 'Cổng cược đã đóng lại mất rồi!', ephemeral: true });
+
+    const horseIndex = parseInt(interaction.customId.split('_')[2], 10);
+    const amountStr = interaction.fields.getTextInputValue('amount').toLowerCase();
     
     let amount;
     if (amountStr === 'all' || amountStr === 'allin') {
-      amount = getBalance(message.author.id);
+      amount = await getBalance(interaction.user.id, interaction.user.username);
     } else {
       amount = parseInt(amountStr, 10);
     }
     
-    if (isNaN(horseId) || horseId < 1 || horseId > 5) {
-      return message.reply('Màu ngựa không hợp lệ. Vui lòng chọn từ 1 đến 5.');
-    }
-    
     if (isNaN(amount) || amount <= 0) {
-      return message.reply('Số tiền cược không hợp lệ.');
+      return interaction.reply({ content: 'Bạn nhập số tiền không hợp lệ!', ephemeral: true });
     }
     
-    if (!checkBalance(message.author.id, amount)) {
-      return message.reply('Tài khoản của bạn không đủ tiền để tham gia mức cược này.');
+    const hasEnough = await checkBalance(interaction.user.id, interaction.user.username, amount);
+    if (!hasEnough) {
+      return interaction.reply({ content: 'Bạn không đủ tiền để cược kèo này đâu!', ephemeral: true });
     }
     
-    updateBalance(message.author.id, -amount);
+    await updateBalance(interaction.user.id, interaction.user.username, -amount);
     
     game.bets.push({
-      userId: message.author.id,
-      horseIndex: horseId - 1,
+      userId: interaction.user.id,
+      username: interaction.user.username,
+      horseIndex: horseIndex,
       amount: amount
     });
     
-    return message.reply(`✅ Cược thành công **${amount.toLocaleString()} coins** vào ngựa số **${horseId}** ${HORSE_EMOJIS[horseId - 1]}`);
+    return interaction.reply({ content: `💸 **<@${interaction.user.id}>** vừa đặt cược **${amount.toLocaleString()} coins** vào Ngựa số **${horseIndex + 1}** ${HORSE_EMOJIS[horseIndex]}!`, ephemeral: false });
   }
-
-  return message.reply('Lệnh sai, dùng `!dn start` hoặc `!dn bet <mã 1-5> <số tiền>`');
 }
 
 async function startRace(channel, channelId) {
   const game = activeGames.get(channelId);
   game.state = 'RACING';
+  
+  // Tắt nút bấm khi vô race
+  if (game.startMessage) {
+    await game.startMessage.edit({ components: [] }).catch(() => {});
+  }
   
   if (game.bets.length === 0) {
     channel.send('Không có ai cược! Hủy cuộc đua.');
@@ -142,6 +171,7 @@ async function startRace(channel, channelId) {
       const safePos = Math.min(pos, TRACK_LENGTH - 1);
       const coloredLine = LINE_COLORS[idx].repeat(safePos);
       const remainingLine = EMPTY_BLOCK.repeat(Math.max(0, TRACK_LENGTH - safePos - 1));
+      
       return `[**${idx + 1}**] ${coloredLine}🏇${remainingLine} 🏁`;
     }).join('\n\n');
   };
@@ -172,7 +202,7 @@ async function startRace(channel, channelId) {
     }
     
     for (let i = 0; i < horses.length; i++) {
-      let step = Math.floor(Math.random() * 4); // 0-3 bước bình thường
+      let step = Math.floor(Math.random() * 3) + 1; // Nhảy 1-3 bước
       
       if (i === eventHorse) {
         if (eventType === 0) {
@@ -180,14 +210,14 @@ async function startRace(channel, channelId) {
           eventLog = `⚡ KIẾN TẠO! Ngựa số ${i+1} bứt tốc kinh hoàng!`;
         } else if (eventType === 1) {
           step = 0;
-          eventLog = `💥 TAI NẠN! Ngựa số ${i+1} bị vấp ngã và khựng lại!`;
+          eventLog = `💥 TAI NẠN! Ngựa số ${i+1} bị vấp ngã mất chớn!`;
         } else if (eventType === 2) {
           step = -1;
-          eventLog = `🌪️ LÚ LẪN! Ngựa số ${i+1} chạy lùi về phía sau!`;
+          eventLog = `🌪️ LÚ LẪN! Ngựa số ${i+1} hoảng loạn lùi về phía sau!`;
         }
       }
       
-      horses[i] = Math.max(0, horses[i] + step); // Không lùi quá vạch xuất phát
+      horses[i] = Math.max(0, horses[i] + step); 
       
       if (horses[i] >= TRACK_LENGTH - 1) {
         horses[i] = TRACK_LENGTH - 1;
@@ -198,15 +228,14 @@ async function startRace(channel, channelId) {
       }
     }
     
-    raceEmbed.setDescription(`${renderTrack()}\n\n🎙️ **Bình luận:**\n> *${eventLog}*`);
+    raceEmbed.setDescription(`${renderTrack()}\n\n🎙️ **Bình luận trực tiếp:**\n> *${eventLog}*`);
     await raceMsg.edit({ embeds: [raceEmbed] }).catch(() => {});
     
     if (isFinished) break;
   }
   
-  await sleep(1000); // Đợi 1 nhịp để khán giả thấy ngựa cán đích
+  await sleep(1000); 
   
-  // Tính tiền
   let totalRewardStr = '';
   const userWinning = {};
   
@@ -214,7 +243,7 @@ async function startRace(channel, channelId) {
     if (bet.horseIndex === winningHorse) {
       if (!userWinning[bet.userId]) userWinning[bet.userId] = 0;
       userWinning[bet.userId] += (bet.amount * WINNING_REWARD_MULTIPLIER) + bet.amount;
-      updateBalance(bet.userId, (bet.amount * WINNING_REWARD_MULTIPLIER) + bet.amount);
+      await updateBalance(bet.userId, bet.username, (bet.amount * WINNING_REWARD_MULTIPLIER) + bet.amount);
     }
   }
   
@@ -222,9 +251,8 @@ async function startRace(channel, channelId) {
     totalRewardStr += `<@${userId}> thắng **${winAmt.toLocaleString()}** coins!\n`;
   }
   
-  if (totalRewardStr === '') totalRewardStr = 'Khán đài than khóc! Không ai cược trúng ngựa vô địch 😢';
+  if (totalRewardStr === '') totalRewardStr = 'Trắng tay hết ráo! Không ai cược trúng ngựa vô địch 😢';
   
-  // Tạo hình ảnh
   const attachment = drawHorseResult(winningHorse);
   
   const resultEmbed = new EmbedBuilder()

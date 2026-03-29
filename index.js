@@ -1,8 +1,8 @@
 import { Client, GatewayIntentBits, Partials, EmbedBuilder } from 'discord.js';
 import dotenv from 'dotenv';
-import { getBalance } from './utils/db.js';
-import { handleHorseRacing } from './games/horse_racing.js';
-import { handleBauCua } from './games/baucua.js';
+import { connectDB, getBalance } from './utils/db.js';
+import { handleHorseRacing, handleHorseRacingInteraction } from './games/horse_racing.js';
+import { handleBauCua, handleBauCuaInteraction } from './games/baucua.js';
 
 dotenv.config();
 
@@ -17,12 +17,14 @@ const client = new Client({
 
 const PREFIX = '!';
 
-client.once('ready', () => {
+client.once('ready', async () => {
   console.log(`Bot is ready! Logged in as ${client.user.tag}`);
+  // Kết nối đến MongoDB
+  await connectDB();
 });
 
+// Xử lý Lệnh chat (Prefix commands)
 client.on('messageCreate', async (message) => {
-  // Bỏ qua tin nhắn từ bot hoặc không bắt đầu bằng PREFIX
   if (message.author.bot || !message.content.startsWith(PREFIX)) return;
 
   const args = message.content.slice(PREFIX.length).trim().split(/ +/);
@@ -30,7 +32,7 @@ client.on('messageCreate', async (message) => {
 
   try {
     if (['balance', 'b', 'coins', 'money', 'sd'].includes(command)) {
-      const balance = getBalance(message.author.id);
+      const balance = await getBalance(message.author.id, message.author.username);
       const embed = new EmbedBuilder()
         .setColor('#2ecc71')
         .setAuthor({ name: message.author.username, iconURL: message.author.displayAvatarURL() })
@@ -49,19 +51,33 @@ client.on('messageCreate', async (message) => {
     if (command === 'help') {
       const helpMsg = `
 🎲 **Danh sách lệnh Mini-game Bot:**
-- \`!balance\` (\`!b\`, \`!money\`, \`!coins\`): Kiểm tra số dư / nhận 1000 coins lần đầu tiên.
-- \`!duangua\` (\`!dn\`): Chơi đua ngựa.
-  - \`!dn start\`: Mở phòng cược đua ngựa (mặc định mở 30s).
-  - \`!dn bet <1-5> <tiền>\`: Đặt cược 1 con ngựa mã (1-5).
-- \`!baucua\` (\`!bc\`): Chơi bầu cua.
-  - \`!bc start\`: Mở phòng cược bầu cua.
-  - \`!bc bet <bau/cua/tom/ca/ga/nai> <tiền>\`: Đặt cược bầu cua.
+- \`!balance\` (\`!b\`, \`!money\`, \`!coins\`, \`!sd\`): Kiểm tra số dư / nhận 1000 coins lần đầu.
+- \`!dn start\`: Mở phòng đua ngựa (đặt cược bằng nút bấm).
+- \`!bc start\`: Mở phòng bầu cua (đặt cược bằng nút bấm).
       `;
       return message.reply(helpMsg.trim());
     }
   } catch (error) {
     console.error('Error handling command:', error);
     message.reply('Đã xảy ra lỗi khi xử lý lệnh của bạn!').catch(console.error);
+  }
+});
+
+// Xử lý Sự kiện Nút bấm & Cửa sổ nhập liệu (Interactions)
+client.on('interactionCreate', async (interaction) => {
+  try {
+    if (interaction.customId?.startsWith('bet_horse_') || interaction.customId?.startsWith('modal_horse_')) {
+      return handleHorseRacingInteraction(interaction);
+    }
+
+    if (interaction.customId?.startsWith('bet_bc_') || interaction.customId?.startsWith('modal_bc_')) {
+      return handleBauCuaInteraction(interaction);
+    }
+  } catch (e) {
+    console.error('Interaction Error:', e);
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({ content: 'Đã xảy ra lỗi khi xử lý thao tác của bạn!', ephemeral: true }).catch(() => {});
+    }
   }
 });
 

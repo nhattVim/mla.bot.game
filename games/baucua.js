@@ -1,59 +1,53 @@
-import { EmbedBuilder, AttachmentBuilder } from 'discord.js';
+import { EmbedBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 import { createCanvas } from 'canvas';
 import { getBalance, updateBalance, checkBalance } from '../utils/db.js';
 
-// Lưu trữ trạng thái game theo từng channel ID
-// { state: 'IDLE' | 'BETTING' | 'ROLLING', bets: [], message: null }
 const activeGames = new Map();
 
-// Các con vật và emoji tương ứng
 const ANIMALS = ['bau', 'cua', 'tom', 'ca', 'ga', 'nai'];
 const EMOJIS = {
   bau: '🎃 Bầu', cua: '🦀 Cua', tom: '🦐 Tôm',
   ca: '🐟 Cá', ga: '🐔 Gà', nai: '🦌 Nai'
 };
-
+const ICONS = {
+  bau: '🎃', cua: '🦀', tom: '🦐', ca: '🐟', ga: '🐔', nai: '🦌'
+};
+const LABELS = {
+  bau: 'BẦU', cua: 'CUA', tom: 'TÔM', ca: 'CÁ', ga: 'GÀ', nai: 'NAI'
+};
 const COLORS = {
   bau: '#f39c12', cua: '#e74c3c', tom: '#e67e22',
-  ca: ' #3498db', ga: '#f1c40f', nai: '#8e44ad'
+  ca: '#3498db', ga: '#f1c40f', nai: '#8e44ad'
 };
 
 function drawBauCuaResult(results) {
   const canvas = createCanvas(600, 200);
   const ctx = canvas.getContext('2d');
   
-  // Vẽ nền (dark mode)
-  ctx.fillStyle = '#2b2d31'; // Giống màu background Discord
+  ctx.fillStyle = '#2b2d31'; 
   ctx.fillRect(0, 0, 600, 200);
 
-  // Vẽ 3 ô vuông kết quả
   results.forEach((animal, i) => {
     const startX = 40 + (i * 180);
     const startY = 30;
     
-    // Đổ bóng nhẹ
     ctx.shadowColor = 'rgba(0,0,0,0.5)';
     ctx.shadowBlur = 10;
-    ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 5;
 
-    // Hình chữ nhật bo góc bằng polyfill (hoặc roundRect nếu Node.js >= 20, nhưng để an toàn cứ dùng line/arc)
     ctx.fillStyle = COLORS[animal] || '#ffffff';
     ctx.beginPath();
-    ctx.roundRect(startX, startY, 150, 140, 20); // Vẽ ô chữ nhật
+    ctx.roundRect(startX, startY, 150, 140, 20);
     ctx.fill();
 
-    // Tắt bóng
     ctx.shadowBlur = 0;
     
-    // Viết chữ
+    // Sử dụng font Emoji để vẽ icon thay vì vẽ chữ (ví dụ 🎃 thay vì BẦU)
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 36px sans-serif';
+    ctx.font = '70px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    
-    const label = animal.toUpperCase();
-    ctx.fillText(label, startX + 75, startY + 70);
+    ctx.fillText(ICONS[animal], startX + 75, startY + 75);
   });
 
   return new AttachmentBuilder(canvas.toBuffer(), { name: 'baucua-result.png' });
@@ -63,7 +57,7 @@ export async function handleBauCua(message, args) {
   const channelId = message.channel.id;
   
   if (!activeGames.has(channelId)) {
-    activeGames.set(channelId, { state: 'IDLE', bets: [] });
+    activeGames.set(channelId, { state: 'IDLE', bets: [], startMessage: null });
   }
   
   const game = activeGames.get(channelId);
@@ -80,63 +74,101 @@ export async function handleBauCua(message, args) {
     const endTime = Math.floor(Date.now() / 1000) + 30;
     const embed = new EmbedBuilder()
       .setTitle('🎲 SÒNG BẦU CUA ĐÃ MỞ!')
-      .setDescription(`Cổng cược sẽ đóng **<t:${endTime}:R>**! Hãy đặt cược bằng lệnh:\n\`!bc bet <con vật> <tiền>\`\n\n*(Mỗi con vật xuất hiện 1 lần trả thưởng x1, 2 lần x2, 3 lần x3)*`)
-      .addFields({ name: 'Các con vật hợp lệ', value: '`bau` (🎃), `cua` (🦀), `tom` (🦐), `ca` (🐟), `ga` (🐔), `nai` (🦌)' })
+      .setDescription(`Cổng cược sẽ đóng **<t:${endTime}:R>**!\n\n*(Mỗi con vật xuất hiện 1 lần trả thưởng x1, 2 lần x2, 3 lần x3)*\n**BẤM VÀO CÁC NÚT BÊN DƯỚI ĐỂ ĐẶT CƯỢC!**`)
       .setColor('#f1c40f');
 
-    await message.channel.send({ embeds: [embed] });
+    const row1 = new ActionRowBuilder();
+    const row2 = new ActionRowBuilder();
+    
+    ANIMALS.forEach((animal, idx) => {
+      const btn = new ButtonBuilder()
+          .setCustomId(`bet_bc_${animal}`)
+          .setLabel(LABELS[animal])
+          .setEmoji(ICONS[animal])
+          .setStyle(ButtonStyle.Primary);
+          
+      if (idx < 3) row1.addComponents(btn);
+      else row2.addComponents(btn);
+    });
+
+    const startMsg = await message.channel.send({ embeds: [embed], components: [row1, row2] });
+    game.startMessage = startMsg;
     
     setTimeout(() => rollDice(message.channel, channelId), 30000);
     return;
   }
 
-  if (action === 'bet') {
-    if (game.state !== 'BETTING') {
-      return message.reply('Sòng chưa mở cược! Hãy bắt đầu bằng `!bc start`');
-    }
+  return message.reply('Lệnh sai! Bạn chỉ cần gõ `!bc start` để mở cổng cược, sau đó bấm Nút để đặt cược.');
+}
 
-    const animalName = args[1] ? args[1].toLowerCase() : '';
-    const amountStr = args[2];
+export async function handleBauCuaInteraction(interaction) {
+  if (interaction.isButton()) {
+    const animal = interaction.customId.split('_')[2];
     
-    if (!ANIMALS.includes(animalName)) {
-      return message.reply('Tên con vật hợp lệ là: `bau`, `cua`, `tom`, `ca`, `ga`, `nai`');
-    }
+    const modal = new ModalBuilder()
+      .setCustomId(`modal_bc_${animal}`)
+      .setTitle(`Cược vào ${LABELS[animal]} ${ICONS[animal]}`);
+      
+    const amountInput = new TextInputBuilder()
+      .setCustomId('amount')
+      .setLabel("Nhập số tiền cược (hoặc 'all' / 'allin')")
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('Ví dụ: 5000')
+      .setRequired(true);
+      
+    const firstActionRow = new ActionRowBuilder().addComponents(amountInput);
+    modal.addComponents(firstActionRow);
+    
+    await interaction.showModal(modal);
+  } else if (interaction.isModalSubmit()) {
+    const channelId = interaction.channelId;
+    if (!activeGames.has(channelId)) return interaction.reply({ content: 'Không tìm thấy Sòng bầu cua nào!', ephemeral: true });
+    
+    const game = activeGames.get(channelId);
+    if (game.state !== 'BETTING') return interaction.reply({ content: 'Nhà cái đang lắc xúc xắc, đã hết giờ cược!', ephemeral: true });
+
+    const animalName = interaction.customId.split('_')[2];
+    const amountStr = interaction.fields.getTextInputValue('amount').toLowerCase();
     
     let amount;
     if (amountStr === 'all' || amountStr === 'allin') {
-      amount = getBalance(message.author.id);
+      amount = await getBalance(interaction.user.id, interaction.user.username);
     } else {
       amount = parseInt(amountStr, 10);
     }
     
     if (isNaN(amount) || amount <= 0) {
-      return message.reply('Số tiền cược không hợp lệ.');
+      return interaction.reply({ content: 'Số tiền ảo không hợp lệ!', ephemeral: true });
     }
     
-    if (!checkBalance(message.author.id, amount)) {
-      return message.reply('Tài khoản của bạn không đủ tiền để cược tiếp!');
+    const hasEnough = await checkBalance(interaction.user.id, interaction.user.username, amount);
+    if (!hasEnough) {
+      return interaction.reply({ content: 'Rất tiếc, bạn không đủ tiền để tham gia deal cược này!', ephemeral: true });
     }
     
-    updateBalance(message.author.id, -amount);
+    await updateBalance(interaction.user.id, interaction.user.username, -amount);
     
     game.bets.push({
-      userId: message.author.id,
+      userId: interaction.user.id,
+      username: interaction.user.username,
       animal: animalName,
       amount: amount
     });
     
-    return message.reply(`✅ Bạn đặt **${amount.toLocaleString()} coins** vào **${EMOJIS[animalName]}**`);
+    return interaction.reply({ content: `💸 **<@${interaction.user.id}>** vừa chốt deal **${amount.toLocaleString()} coins** vào **${EMOJIS[animalName]}**!`, ephemeral: false });
   }
-
-  return message.reply('Lệnh không đúng. Dùng `!bc start` hoặc `!bc bet <con vật> <số tiền>`');
 }
 
 async function rollDice(channel, channelId) {
   const game = activeGames.get(channelId);
   game.state = 'ROLLING';
   
+  if (game.startMessage) {
+    await game.startMessage.edit({ components: [] }).catch(() => {});
+  }
+  
   if (game.bets.length === 0) {
-    channel.send('Không có ai đặt cược. Hủy sòng!');
+    channel.send('Không có khách VIP nào xuống tiền, Nhà Cái quyết định hủy sòng!');
     activeGames.delete(channelId);
     return;
   }
@@ -148,23 +180,21 @@ async function rollDice(channel, channelId) {
     
   const rollingMsg = await channel.send({ embeds: [rollingEmbed] });
   
-  // Animation frames (Shuffling effect)
   const sleep = (ms) => new Promise(res => setTimeout(res, ms));
   const frames = [
     '**[ 🧊 | 🧊 | 🧊 ]**\n*Lắc lắc lắc...*',
     '**[ 🎲 | 🧊 | 🎲 ]**\n*Xóc xóc xóc...*',
-    '**[ ❓ | 🎲 | ❓ ]**\n*Sắp ra...*'
+    '**[ ❓ | 🎲 | ❓ ]**\n*Lóe sáng...*'
   ];
 
   for (let i = 0; i < frames.length; i++) {
-    await sleep(1500); // 1.5 giây mỗi nhịp
+    await sleep(2000); 
     rollingEmbed.setDescription(frames[i]);
     await rollingMsg.edit({ embeds: [rollingEmbed] }).catch(() => {});
   }
   
-  await sleep(1500);
+  await sleep(2000);
 
-  // Kết quả cuối
   const results = [
     ANIMALS[Math.floor(Math.random() * ANIMALS.length)],
     ANIMALS[Math.floor(Math.random() * ANIMALS.length)],
@@ -186,28 +216,26 @@ async function rollDice(channel, channelId) {
       if (!userWinning[bet.userId]) userWinning[bet.userId] = 0;
       userWinning[bet.userId] += winAmt;
       
-      updateBalance(bet.userId, winAmt);
+      await updateBalance(bet.userId, bet.username, winAmt);
     }
   }
   
   for (const [userId, totalWin] of Object.entries(userWinning)) {
-    totalWinStr += `<@${userId}> trúng **${totalWin.toLocaleString()}** coins!\n`;
+    totalWinStr += `<@${userId}> thắng đậm **${totalWin.toLocaleString()}** coins!\n`;
   }
   
-  if (totalWinStr === '') totalWinStr = 'Nhà cái húp trọn! Không ai trúng cả 😢';
+  if (totalWinStr === '') totalWinStr = 'Nhà cái húp trọn, người chơi ra đê! 😢';
   
-  // Vẽ ảnh kết quả
   const attachment = drawBauCuaResult(results);
 
   const resultEmbed = new EmbedBuilder()
     .setTitle('🎲 KẾT QUẢ BẦU CUA 🎲')
     .setColor('#2ecc71')
     .setImage('attachment://baucua-result.png')
-    .setDescription(`**Kết quả là:** ${results.map(r => EMOJIS[r]).join(' | ')}\n\n**Bảng Vàng Trúng Giải:**\n${totalWinStr}`);
+    .setDescription(`**Bảng Vàng VIP:**\n${totalWinStr}`);
   
-  // Gửi lại tin nhắn cuối cùng để ping người dùng
   await channel.send({ embeds: [resultEmbed], files: [attachment] });
-  await rollingMsg.delete().catch(() => {}); // Xóa tin nhắn lắc thừa
+  await rollingMsg.delete().catch(() => {}); 
   
   activeGames.delete(channelId);
 }

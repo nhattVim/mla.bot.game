@@ -99,6 +99,21 @@ export async function getUserInventory(userId, username) {
   } catch (e) { return {}; }
 }
 
+export async function grantItemDb(userId, username, itemId) {
+  if (!isConnected) return false;
+  try {
+    let user = await User.findOne({ userId });
+    if (!user) user = new User({ userId, username, balance: 1000 });
+
+    if (!user.inventory) user.inventory = new Map();
+    const currentQty = user.inventory.get(itemId) || 0;
+    
+    user.inventory.set(itemId, currentQty + 1);
+    await user.save();
+    return true;
+  } catch (e) { return false; }
+}
+
 export async function buyItem(userId, username, itemId, cost) {
   if (!isConnected) return { success: false, message: 'Giao dịch DB bị lỗi!' };
   try {

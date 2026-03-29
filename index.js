@@ -1,7 +1,7 @@
 import http from 'http';
 import { Client, GatewayIntentBits, Partials, EmbedBuilder } from 'discord.js';
 import dotenv from 'dotenv';
-import { connectDB, getBalance } from './utils/db.js';
+import { connectDB, getBalance, claimDaily } from './utils/db.js';
 import { handleHorseRacing, handleHorseRacingInteraction } from './games/horse_racing.js';
 import { handleBauCua, handleBauCuaInteraction } from './games/baucua.js';
 import { handleOanTuTi, handleOanTuTiInteraction } from './games/oantuti.js';
@@ -33,39 +33,52 @@ client.on('messageCreate', async (message) => {
   const command = args.shift().toLowerCase();
 
   try {
-    if (['balance', 'b', 'coins', 'money', 'sd'].includes(command)) {
+    if (command === 'b') {
       const balance = await getBalance(message.author.id, message.author.username);
       const embed = new EmbedBuilder()
         .setColor('#2ecc71')
         .setAuthor({ name: message.author.username, iconURL: message.author.displayAvatarURL() })
-        .setDescription(`💰 Số dư hiện tại của bạn là: **${balance.toLocaleString()}** coins.`);
+        .setDescription(`💰 Két sắt hiện tại của VIP đang có: **${balance.toLocaleString()}** coins.`);
       return message.reply({ embeds: [embed] });
     }
 
-    if (command === 'duangua' || command === 'dn') {
+    if (command === 'dd') {
+      const result = await claimDaily(message.author.id, message.author.username);
+      if (!result.success) {
+        return message.reply({ content: `🚫 **THẤT BẠI:** ${result.message}` });
+      } else {
+        const embed = new EmbedBuilder()
+          .setColor('#f1c40f')
+          .setTitle('📅 ĐIỂM DANH HẰNG NGÀY')
+          .setDescription(`Chúc mừng <@${message.author.id}> đã nhận lương **${result.reward.toLocaleString()} coins**!\n\nSố dư mới: **${result.balance.toLocaleString()} coins**.\nHãy quay lại điểm danh nữa sau **00:00 (Nửa Đêm)**.`);
+        return message.reply({ embeds: [embed] });
+      }
+    }
+
+    if (command === 'dn') {
       return handleHorseRacing(message, args);
     }
 
-    if (command === 'baucua' || command === 'bc') {
+    if (command === 'bc') {
       return handleBauCua(message, args);
     }
 
-    if (command === 'oantuti' || command === 'ott') {
+    if (command === 'ott') {
       return handleOanTuTi(message, args);
     }
 
-    if (['help', 'h', 'huongdan', 'hd', 'menu'].includes(command)) {
+    if (command === 'help') {
       const embed = new EmbedBuilder()
-        .setTitle('📖 SÁCH HƯỚNG DẪN SỬ DỤNG BOT GAME 🎮')
+        .setTitle('📖 SÁCH HƯỚNG DẪN CÚ PHÁP ĐƠN GIẢN NHẤT 🎮')
         .setColor('#9b59b6')
-        .setDescription('Chào mừng VIP đã ngự giá đến thiên đường giải trí đỉnh cao! Tiền không tự sinh ra cũng không tự mất đi, nó chỉ chạy từ túi bạn sang túi... Chủ Cấn.\n\n**Dưới đây là danh sách toàn bộ các lệnh đang hoạt động:**')
+        .setDescription('Tin vui! Tất cả các lệnh dư thừa rườm rà đã bị lược bỏ bớt. Giờ đây Backend xử lý chớp nhoáng với 5 câu lệnh ngắn nhất vũ trụ:\n\n**DANH SÁCH LỆNH CHÍNH:**')
         .addFields(
-          { name: '💰 Kiểm Tra Két Sắt', value: 'Gõ: `!money`\n👉 Xem số dư hiện tại. Lần đầu sử dụng thẻ sẽ được ngân hàng miễn phí **1,000 coins** làm vốn.', inline: false },
-          { name: '🐎 Trường Đua Ngựa Điện Tử', value: 'Gõ: `!dn start`\n👉 Mở cổng Cược Đua Ngựa. Trò chơi bấm nút cực nhanh, tỷ lệ ăn ngất ngưởng x4.', inline: false },
-          { name: '🎲 Xóc Dĩa Bầu Cua Tôm Cá', value: 'Gõ: `!bc start`\n👉 Mở Sòng xóc Bầu Cua. Chọn mặt gửi vàng qua 6 cái Icon nút bấm. Số lượng xúc xắc ra bao nhiêu mặt ăn bấy nhiêu lần.', inline: false },
-          { name: '✌️ Oẳn Tù Tì PVP', value: 'Gõ: `!ott @TagDoiThu <Số_tiền_cược>`\n👉 Thách đấu Oẳn Tù Tì 1 vs 1. Ai thắng sẽ lột sạch tiền cược của kẻ bị thua. Cảnh báo bị phạt khi cố tình AFK!', inline: false }
+          { name: '💰 Quản Lý Ví', value: '`!b`: Xem số dư ngân hàng hiện tại của bạn.\n`!dd`: Lấy lương ngẫu nhiên 200 - 2,000 coin mỗi ngày một lần (Khôi phục lúc Nửa Đêm).', inline: false },
+          { name: '🐎 Mở Chuồng Đua Ngựa', value: 'Gõ: `!dn`\n👉 Bot bung giao diện cược, chọn màu ngựa qua Nút.', inline: false },
+          { name: '🎲 Lắc Bầu Cua Tôm Cá', value: 'Gõ: `!bc`\n👉 Xóc dĩa online, chọn linh vật thông qua Nút.', inline: false },
+          { name: '✌️ Thách Đấu Oẳn Tù Tì', value: 'Gõ: `!ott @TagNgườiKìa <Số_tiền>`\n👉 Kéo búa bao đẫm máu 1 vs 1. Ai thua đền trọn tiền mạng.', inline: false }
         )
-        .setFooter({ text: 'Chú ý: Giao dịch thông qua Nút Bấm rất hiện đại - Chúc các bác may mắn thoát khỏi cửa ải đê vỡ!' });
+        .setFooter({ text: 'Chú ý: Tuyệt tối không gõ dài dòng hay sai cú pháp (như !bc start nữa). Bot sẽ ngó lơ luôn đó!' });
       return message.reply({ embeds: [embed] });
     }
   } catch (error) {

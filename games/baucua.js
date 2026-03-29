@@ -61,15 +61,13 @@ export async function handleBauCua(message, args) {
   }
   
   const game = activeGames.get(channelId);
-  const action = args[0] ? args[0].toLowerCase() : '';
 
-  if (action === 'start') {
-    if (game.state !== 'IDLE') {
-      return message.reply('Sòng Bầu Cua đang mở cược hoặc đang lắc!');
-    }
-    
-    game.state = 'BETTING';
-    game.bets = [];
+  if (game.state !== 'IDLE') {
+    return message.reply('Bình tĩnh ông giáo ơi, nhà cái đang xóc dĩa rồi, đợi xong mẻ này đã!');
+  }
+  
+  game.state = 'BETTING';
+  game.bets = [];
     
     const endTime = Math.floor(Date.now() / 1000) + 30;
     const embed = new EmbedBuilder()
@@ -96,9 +94,6 @@ export async function handleBauCua(message, args) {
     
     setTimeout(() => rollDice(message.channel, channelId), 30000);
     return;
-  }
-
-  return message.reply('Lệnh sai! Bạn chỉ cần gõ `!bc start` để mở cổng cược, sau đó bấm Nút để đặt cược.');
 }
 
 export async function handleBauCuaInteraction(interaction) {

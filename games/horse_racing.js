@@ -51,15 +51,13 @@ export async function handleHorseRacing(message, args) {
   }
   
   const game = activeGames.get(channelId);
-  const action = args[0] ? args[0].toLowerCase() : '';
 
-  if (action === 'start') {
-    if (game.state !== 'IDLE') {
-      return message.reply('Cuộc đua đang diễn ra hoặc đang mở cược!');
-    }
-    
-    game.state = 'BETTING';
-    game.bets = [];
+  if (game.state !== 'IDLE') {
+    return message.reply('Sàn đua đang hot, đợi ngựa cán đích hoặc cổng cược đóng rồi gõ lệnh lại bạn hiền!');
+  }
+  
+  game.state = 'BETTING';
+  game.bets = [];
     
     const endTime = Math.floor(Date.now() / 1000) + 30;
     const embed = new EmbedBuilder()
@@ -84,9 +82,6 @@ export async function handleHorseRacing(message, args) {
     
     setTimeout(() => startRace(message.channel, channelId), 30000);
     return;
-  }
-
-  return message.reply('Lệnh sai, gõ `!dn start` để mở cổng cược, sau đó bấm Nút để đặt cược nhé!');
 }
 
 // Hàm Xử lý Tương Tác từ index.js

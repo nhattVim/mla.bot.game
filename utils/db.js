@@ -26,7 +26,8 @@ export async function connectDB() {
 const userSchema = new mongoose.Schema({
   userId: { type: String, required: true, unique: true },
   username: { type: String, required: true },
-  balance: { type: Number, default: 1000 }
+  balance: { type: Number, default: 1000 },
+  lastDaily: { type: Date, default: null }
 });
 
 const User = mongoose.model('User', userSchema);
@@ -69,4 +70,43 @@ export async function updateBalance(userId, username, amount) {
 export async function checkBalance(userId, username, amount) {
   const balance = await getBalance(userId, username);
   return balance >= amount;
+}
+
+export async function claimDaily(userId, username) {
+  if (!isConnected) return { success: false, message: 'Hệ thống DB đang offline!' };
+  
+  try {
+    let user = await User.findOne({ userId });
+    if (!user) {
+      user = new User({ userId, username, balance: 1000 });
+    } else {
+      user.username = username;
+    }
+
+    const now = new Date();
+    // So sánh thời gian theo GMT +7 (VN)
+    const vnNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+
+    if (user.lastDaily) {
+      const vnLast = new Date(user.lastDaily.getTime() + 7 * 60 * 60 * 1000);
+      
+      if (
+        vnNow.getUTCFullYear() === vnLast.getUTCFullYear() &&
+        vnNow.getUTCMonth() === vnLast.getUTCMonth() &&
+        vnNow.getUTCDate() === vnLast.getUTCDate()
+      ) {
+        return { success: false, message: 'Hôm nay bạn đã nhận lương rồi! Hãy quay lại vào ngày mai (sau 00:00).' };
+      }
+    }
+
+    const rewardCoins = Math.floor(Math.random() * (2000 - 200 + 1)) + 200;
+    user.balance += rewardCoins;
+    user.lastDaily = now; // Lưu DB dưới múi giờ UTC thực
+    
+    await user.save();
+    return { success: true, reward: rewardCoins, balance: user.balance };
+  } catch (error) {
+    console.error('Crashed at claimDaily:', error);
+    return { success: false, message: 'Hệ thống đang bảo trì.' };
+  }
 }

@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { connectDB, getBalance } from './utils/db.js';
 import { handleHorseRacing, handleHorseRacingInteraction } from './games/horse_racing.js';
 import { handleBauCua, handleBauCuaInteraction } from './games/baucua.js';
+import { handleOanTuTi, handleOanTuTiInteraction } from './games/oantuti.js';
 
 dotenv.config();
 
@@ -49,14 +50,23 @@ client.on('messageCreate', async (message) => {
       return handleBauCua(message, args);
     }
 
-    if (command === 'help') {
-      const helpMsg = `
-🎲 **Danh sách lệnh Mini-game Bot:**
-- \`!balance\` (\`!b\`, \`!money\`, \`!coins\`, \`!sd\`): Kiểm tra số dư / nhận 1000 coins lần đầu.
-- \`!dn start\`: Mở phòng đua ngựa (đặt cược bằng nút bấm).
-- \`!bc start\`: Mở phòng bầu cua (đặt cược bằng nút bấm).
-      `;
-      return message.reply(helpMsg.trim());
+    if (command === 'oantuti' || command === 'ott') {
+      return handleOanTuTi(message, args);
+    }
+
+    if (['help', 'h', 'huongdan', 'hd', 'menu'].includes(command)) {
+      const embed = new EmbedBuilder()
+        .setTitle('📖 SÁCH HƯỚNG DẪN SỬ DỤNG BOT GAME 🎮')
+        .setColor('#9b59b6')
+        .setDescription('Chào mừng VIP đã ngự giá đến thiên đường giải trí đỉnh cao! Tiền không tự sinh ra cũng không tự mất đi, nó chỉ chạy từ túi bạn sang túi... Chủ Cấn.\n\n**Dưới đây là danh sách toàn bộ các lệnh đang hoạt động:**')
+        .addFields(
+          { name: '💰 Kiểm Tra Két Sắt', value: 'Gõ: `!money`\n👉 Xem số dư hiện tại. Lần đầu sử dụng thẻ sẽ được ngân hàng miễn phí **1,000 coins** làm vốn.', inline: false },
+          { name: '🐎 Trường Đua Ngựa Điện Tử', value: 'Gõ: `!dn start`\n👉 Mở cổng Cược Đua Ngựa. Trò chơi bấm nút cực nhanh, tỷ lệ ăn ngất ngưởng x4.', inline: false },
+          { name: '🎲 Xóc Dĩa Bầu Cua Tôm Cá', value: 'Gõ: `!bc start`\n👉 Mở Sòng xóc Bầu Cua. Chọn mặt gửi vàng qua 6 cái Icon nút bấm. Số lượng xúc xắc ra bao nhiêu mặt ăn bấy nhiêu lần.', inline: false },
+          { name: '✌️ Oẳn Tù Tì PVP', value: 'Gõ: `!ott @TagDoiThu <Số_tiền_cược>`\n👉 Thách đấu Oẳn Tù Tì 1 vs 1. Ai thắng sẽ lột sạch tiền cược của kẻ bị thua. Cảnh báo bị phạt khi cố tình AFK!', inline: false }
+        )
+        .setFooter({ text: 'Chú ý: Giao dịch thông qua Nút Bấm rất hiện đại - Chúc các bác may mắn thoát khỏi cửa ải đê vỡ!' });
+      return message.reply({ embeds: [embed] });
     }
   } catch (error) {
     console.error('Error handling command:', error);
@@ -73,6 +83,10 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.customId?.startsWith('bet_bc_') || interaction.customId?.startsWith('modal_bc_')) {
       return handleBauCuaInteraction(interaction);
+    }
+
+    if (interaction.customId?.startsWith('ott_')) {
+      return handleOanTuTiInteraction(interaction);
     }
   } catch (e) {
     console.error('Interaction Error:', e);

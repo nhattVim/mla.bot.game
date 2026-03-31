@@ -6,6 +6,7 @@ import { handleHorseRacing, handleHorseRacingInteraction } from './games/horse_r
 import { handleBauCua, handleBauCuaInteraction } from './games/baucua.js'
 import { handleOanTuTi, handleOanTuTiInteraction } from './games/oantuti.js'
 import { handleShop, handleShopInteraction, SHOP_ITEMS } from './games/shop.js'
+import { handleGive, handleAnXin, handleAnXinInteraction } from './games/economy.js'
 import { getUserInventory } from './utils/db.js'
 
 dotenv.config()
@@ -82,6 +83,14 @@ client.on('messageCreate', async (message) => {
       return handleShop(message, args)
     }
 
+    if (command === 'give') {
+      return handleGive(message, args)
+    }
+
+    if (command === 'anxin') {
+      return handleAnXin(message, args)
+    }
+
     if (command === 'help') {
       const embed = new EmbedBuilder()
         .setTitle('📖 DANH SÁCH LỆNH 🎮')
@@ -92,7 +101,9 @@ client.on('messageCreate', async (message) => {
           { name: '🐎 Mở Chuồng Đua Ngựa', value: 'Gõ: `!dn`\n👉 Bot bung giao diện cược, chọn ngựa may mắn.\n', inline: false },
           { name: '🎲 Lắc Bầu Cua Tôm Cá', value: 'Gõ: `!bc`\n👉 Xóc dĩa online, chọn linh vật may mắn.\n', inline: false },
           { name: '✌️ Thách Đấu Oẳn Tù Tì', value: 'Gõ: `!ott @TagNgườiKìa <Số_tiền>`\n👉 Kéo búa bao đẫm máu 1 vs 1. Ai thua đền trọn tiền mạng.\n', inline: false },
-          { name: '🏪 Mở Cửa Hàng Bách Hoá', value: 'Gõ: `!shop`\n👉 Sắm Danh Hiệu đổi Đời hiển thị (gõ `!b` để xem) kèm theo các Vật Phẩm.', inline: false }
+          { name: '🏪 Mở Cửa Hàng Bách Hoá', value: 'Gõ: `!shop`\n👉 Sắm Danh Hiệu đổi Đời hiển thị (gõ `!b` để xem) kèm theo các Vật Phẩm.', inline: false },
+          { name: '💸 Chuyển Tiền', value: 'Gõ: `!give @TagNgườiKìa <Số_tiền>`\n👉 Chuyển tiền của mình cho người khác.\n', inline: false },
+          { name: '🥺 Ăn Xin', value: 'Gõ: `!anxin @TagNgườiKìa <Số_tiền>`\n👉 Van xin người khác cho mình tiền.\n', inline: false }
         )
         .setFooter({ text: 'Chú ý: Lôi Thần đẹp trai vô địch vũ trụ siêu cấp vip pro max galaxy ultra plus plus (￣y▽￣)╭ Ohohoho.....' })
       return message.reply({ embeds: [embed] })
@@ -120,6 +131,10 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.customId?.startsWith('shopbuy_')) {
       return handleShopInteraction(interaction)
+    }
+
+    if (interaction.customId?.startsWith('anxin_')) {
+      return handleAnXinInteraction(interaction)
     }
   } catch (e) {
     console.error('Interaction Error:', e)

@@ -63,6 +63,29 @@ export async function checkBalance(userId, username, amount) {
   return balance >= amount
 }
 
+export async function transferMoney(senderId, senderName, receiverId, receiverName, amount) {
+  if (!isConnected) return { success: false, message: 'Hệ thống DB đang offline!' }
+  try {
+    let sender = await User.findOne({ userId: senderId })
+    if (!sender) sender = new User({ userId: senderId, username: senderName, balance: 1000 })
+
+    if (sender.balance < amount) return { success: false, message: 'Bạn không đủ tiền!' }
+
+    let receiver = await User.findOne({ userId: receiverId })
+    if (!receiver) receiver = new User({ userId: receiverId, username: receiverName, balance: 1000 })
+
+    sender.balance -= amount
+    receiver.balance += amount
+
+    await sender.save()
+    await receiver.save()
+
+    return { success: true, senderBalance: sender.balance, receiverBalance: receiver.balance }
+  } catch (error) {
+    return { success: false, message: 'Lỗi giao dịch DB!' }
+  }
+}
+
 export async function claimDaily(userId, username) {
   if (!isConnected) return { success: false, message: 'Hệ thống DB đang offline!' }
   try {

@@ -59,7 +59,9 @@ export async function handleHorseRacing(message, args) {
   game.state = 'BETTING'
   game.bets = []
 
-  const endTime = Math.floor(Date.now() / 1000) + 30
+  const endTime = Math.floor(Date.now() / 1000) + 30;
+  const targetMs = Date.now() + 30000;
+
   const embed = new EmbedBuilder()
     .setTitle('🏁 TRƯỜNG ĐUA NGỰA MỞ CỬA 🏁')
     .setDescription(`Cổng cược sẽ đóng **<t:${endTime}:R>**!\n\n*(Tỷ lệ ăn thưởng x4)*\n**Hãy bấm vào Nút của ngựa bạn muốn cược bên dưới!**`)
@@ -80,7 +82,17 @@ export async function handleHorseRacing(message, args) {
   const startMsg = await message.channel.send({ embeds: [embed], components: [row] })
   game.startMessage = startMsg
 
-  setTimeout(() => startRace(message.channel, channelId), 30000)
+  const timer = setInterval(() => {
+    if (!activeGames.has(channelId) || activeGames.get(channelId).state !== 'BETTING') {
+      clearInterval(timer);
+      return;
+    }
+    if (Date.now() >= targetMs) {
+      clearInterval(timer);
+      startRace(message.channel, channelId);
+    }
+  }, 1000);
+
   return
 }
 

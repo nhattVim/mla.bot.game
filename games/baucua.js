@@ -69,6 +69,8 @@ export async function handleBauCua(message, args) {
   game.bets = [];
 
     const endTime = Math.floor(Date.now() / 1000) + 30;
+    const targetMs = Date.now() + 30000;
+
     const embed = new EmbedBuilder()
       .setTitle('🎲 SÒNG BẦU CUA ĐÃ MỞ!')
       .setDescription(`Cổng cược sẽ đóng **<t:${endTime}:R>**!\n\n*(Mỗi con vật xuất hiện 1 lần trả thưởng x1, 2 lần x2, 3 lần x3)*\n**BẤM VÀO CÁC NÚT BÊN DƯỚI ĐỂ ĐẶT CƯỢC!**`)
@@ -91,7 +93,17 @@ export async function handleBauCua(message, args) {
     const startMsg = await message.channel.send({ embeds: [embed], components: [row1, row2] });
     game.startMessage = startMsg;
 
-    setTimeout(() => rollDice(message.channel, channelId), 30000);
+    const timer = setInterval(() => {
+      if (!activeGames.has(channelId) || activeGames.get(channelId).state !== 'BETTING') {
+        clearInterval(timer);
+        return;
+      }
+      if (Date.now() >= targetMs) {
+        clearInterval(timer);
+        rollDice(message.channel, channelId);
+      }
+    }, 1000);
+
     return;
 }
 

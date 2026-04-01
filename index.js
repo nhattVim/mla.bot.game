@@ -7,6 +7,7 @@ import { handleBauCua, handleBauCuaInteraction } from './games/baucua.js'
 import { handleOanTuTi, handleOanTuTiInteraction } from './games/oantuti.js'
 import { handleShop, handleShopInteraction, SHOP_ITEMS } from './games/shop.js'
 import { handleGive, handleAnXin, handleAnXinInteraction } from './games/economy.js'
+import { handleBlackjack, handleBlackjackInteraction } from './games/blackjack.js'
 import { getUserInventory } from './utils/db.js'
 
 dotenv.config()
@@ -79,6 +80,10 @@ client.on('messageCreate', async (message) => {
       return handleOanTuTi(message, args)
     }
 
+    if (command === 'bj' || command === 'xidach') {
+      return handleBlackjack(message, args)
+    }
+
     if (command === 'shop' || command === 's') {
       return handleShop(message, args)
     }
@@ -101,6 +106,7 @@ client.on('messageCreate', async (message) => {
           { name: '🐎 Mở Chuồng Đua Ngựa', value: 'Gõ: `!dn`\n👉 Bot bung giao diện cược, chọn ngựa may mắn.\n', inline: false },
           { name: '🎲 Lắc Bầu Cua Tôm Cá', value: 'Gõ: `!bc`\n👉 Xóc dĩa online, chọn linh vật may mắn.\n', inline: false },
           { name: '✌️ Thách Đấu Oẳn Tù Tì', value: 'Gõ: `!ott @TagNgườiKìa <Số_tiền>`\n👉 Kéo búa bao đẫm máu 1 vs 1. Ai thua đền trọn tiền mạng.\n', inline: false },
+          { name: '🃏 Xì Dách (Blackjack)', value: 'Gõ: `!bj <Số_tiền>` hoặc `!xidach <Số_tiền>`\n👉 Đấu trí ăn thua với Nhà Cái.\n', inline: false },
           { name: '🏪 Mở Cửa Hàng Bách Hoá', value: 'Gõ: `!shop`\n👉 Sắm Danh Hiệu đổi Đời hiển thị (gõ `!b` để xem) kèm theo các Vật Phẩm.', inline: false },
           { name: '💸 Chuyển Tiền', value: 'Gõ: `!give @TagNgườiKìa <Số_tiền>`\n👉 Chuyển tiền của mình cho người khác.\n', inline: false },
           { name: '🥺 Ăn Xin', value: 'Gõ: `!anxin @TagNgườiKìa <Số_tiền>`\n👉 Van xin người khác cho mình tiền.\n', inline: false }
@@ -127,6 +133,10 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.customId?.startsWith('ott_')) {
       return handleOanTuTiInteraction(interaction)
+    }
+
+    if (interaction.customId?.startsWith('bj_')) {
+      return handleBlackjackInteraction(interaction)
     }
 
     if (interaction.customId?.startsWith('shopbuy_')) {

@@ -47,9 +47,9 @@ client.on('messageCreate', async (message) => {
       if (inventory['x2_reward']) consumableStr += `\n💰 Vé Tranh Đoạt x2: **${inventory['x2_reward']}** cái`
 
       const embed = new EmbedBuilder()
-        .setColor('#2ecc71')
+        .setColor('#57F287')
         .setAuthor({ name: message.author.username + titleStr, iconURL: message.author.displayAvatarURL() })
-        .setDescription(`💰 Két sắt hiện tại của VIP đang có: **${balance.toLocaleString()}** coins.` + (consumableStr ? `\n\n**🎒 Hành Trang (Tự dụng):**${consumableStr}` : ''))
+        .setDescription(`💰 Số dư hiện tại: **${balance.toLocaleString()}** coins.` + (consumableStr ? `\n\n**🎒 Hành Trang:**${consumableStr}` : ''))
       return message.reply({ embeds: [embed] })
     }
 
@@ -59,10 +59,10 @@ client.on('messageCreate', async (message) => {
         return message.reply({ content: `**THẤT BẠI:** ${result.message}` })
       } else {
         const embed = new EmbedBuilder()
-          .setColor('#f1c40f')
-          .setTitle('📅 ĐIỂM DANH HẰNG NGÀY')
+          .setColor('#57F287')
+          .setTitle('📅 Điểm Danh Hằng Ngày')
           .setDescription(
-            `Chúc mừng <@${message.author.id}> đã nhận lương **${result.reward.toLocaleString()} coins**!\n\nSố dư mới: **${result.balance.toLocaleString()} coins**.\nHãy duy trì điểm danh mỗi ngày !`
+            `Điểm danh thành công! Bạn nhận được **${result.reward.toLocaleString()} coins**.\n\ Số dư hiện tại: **${result.balance.toLocaleString()} coins**.`
           )
         return message.reply({ embeds: [embed] })
       }
@@ -98,20 +98,18 @@ client.on('messageCreate', async (message) => {
 
     if (command === 'help') {
       const embed = new EmbedBuilder()
-        .setTitle('📖 DANH SÁCH LỆNH 🎮')
-        .setColor('#9b59b6')
-        .setDescription('\n\n**DANH SÁCH LỆNH CHÍNH:**')
+        .setTitle('Danh Sách Lệnh Hệ Thống')
+        .setColor('#5865F2')
+        .setDescription('Dưới đây là các lệnh hỗ trợ hiện tại:')
         .addFields(
-          { name: '💰 Quản Lý Ví', value: '`!b`: Xem số dư ngân hàng của bạn.\n`!dd`: Điểm danh nhận Coin mỗi ngày.\n', inline: false },
-          { name: '🐎 Mở Chuồng Đua Ngựa', value: 'Gõ: `!dn`\n👉 Bot bung giao diện cược, chọn ngựa may mắn.\n', inline: false },
-          { name: '🎲 Lắc Bầu Cua Tôm Cá', value: 'Gõ: `!bc`\n👉 Xóc dĩa online, chọn linh vật may mắn.\n', inline: false },
-          { name: '✌️ Thách Đấu Oẳn Tù Tì', value: 'Gõ: `!ott @TagNgườiKìa <Số_tiền>`\n👉 Kéo búa bao đẫm máu 1 vs 1. Ai thua đền trọn tiền mạng.\n', inline: false },
-          { name: '🃏 Xì Dách (Blackjack)', value: 'Gõ: `!bj <Số_tiền>` hoặc `!xidach <Số_tiền>`\n👉 Đấu trí ăn thua với Nhà Cái.\n', inline: false },
-          { name: '🏪 Mở Cửa Hàng Bách Hoá', value: 'Gõ: `!shop`\n👉 Sắm Danh Hiệu đổi Đời hiển thị (gõ `!b` để xem) kèm theo các Vật Phẩm.', inline: false },
-          { name: '💸 Chuyển Tiền', value: 'Gõ: `!give @TagNgườiKìa <Số_tiền>`\n👉 Chuyển tiền của mình cho người khác.\n', inline: false },
-          { name: '🥺 Ăn Xin', value: 'Gõ: `!anxin @TagNgườiKìa <Số_tiền>`\n👉 Van xin người khác cho mình tiền.\n', inline: false }
+          { name: 'Tài Khoản', value: '`!b`: Xem số dư hiện tại.\n`!dd`: Điểm danh nhận thưởng hàng ngày.\n', inline: false },
+          { name: 'Đua Ngựa', value: '`!dn`\nTham gia trường đua, cược ngựa.\n', inline: false },
+          { name: 'Bầu Cua', value: '`!bc`\nTham gia lắc bầu cua.\n', inline: false },
+          { name: 'Oẳn Tù Tì', value: '`!ott @Người_chơi <Số_tiền>`\nThách đấu người chơi khác.\n', inline: false },
+          { name: 'Blackjack', value: '`!bj <Số_tiền>` hoặc `!xidach <Số_tiền>`\nChơi Blackjack với Dealer.\n', inline: false },
+          { name: 'Cửa Hàng', value: '`!shop` hoặc `!s`\nMua danh hiệu và vật phẩm.', inline: false },
+          { name: 'Kinh Tế', value: '`!give @Người_chơi <Số_tiền>`: Chuyển tiền cho người khác.\n`!anxin @Người_chơi <Số_tiền>`: Yêu cầu người khác cho tiền.', inline: false }
         )
-        .setFooter({ text: 'Chú ý: Lôi Thần đẹp trai vô địch vũ trụ siêu cấp vip pro max galaxy ultra plus plus (￣y▽￣)╭ Ohohoho.....' })
       return message.reply({ embeds: [embed] })
     }
   } catch (error) {

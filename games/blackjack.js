@@ -54,7 +54,7 @@ export async function handleBlackjack(message, args) {
   // Prevent multiple active games per user
   for (const game of activeGames.values()) {
     if (game.userId === userId) {
-      return message.reply('Bạn đang dở một ván bài, hãy hoàn thành nó trước đã!');
+      return message.reply('Bạn đang tham gia một ván Blackjack chưa kết thúc!');
     }
   }
 
@@ -72,7 +72,7 @@ export async function handleBlackjack(message, args) {
 
   const currentBalance = await getBalance(userId, username);
   if (currentBalance < amount) {
-    return message.reply('Bạn không có đủ xu để chơi canh bạc này!');
+    return message.reply('Bạn không có đủ xu để tham gia ván Blackjack này!');
   }
 
   // Deduct bet amount immediately
@@ -94,7 +94,7 @@ export async function handleBlackjack(message, args) {
     let resultDisplay = '';
 
     if (isPlayerBJ && isDealerBJ) {
-      resultText = '🤝 Cả hai đều Blackjack! Hoà!';
+      resultText = '🤝 Cả hai đều có Blackjack! Hoà!';
       await updateBalance(userId, username, amount); // Refund
       resultDisplay = `Hoà nhận lại: +${amount.toLocaleString()} coins`;
     } else if (isPlayerBJ) {
@@ -103,13 +103,13 @@ export async function handleBlackjack(message, args) {
       await updateBalance(userId, username, winAmount);
       resultDisplay = `Thắng: +${Math.floor(amount * 1.5).toLocaleString()} coins`;
     } else {
-      resultText = '💥 Dealer Blackjack! Bạn thua!';
+      resultText = '💥 Dealer có Blackjack! Bạn thua!';
       resultDisplay = `Thua: -${amount.toLocaleString()} coins`;
     }
 
     const embed = new EmbedBuilder()
       .setTitle('Blackjack')
-      .setColor(isPlayerBJ && !isDealerBJ ? '#2ecc71' : (isDealerBJ && !isPlayerBJ ? '#e74c3c' : '#f1c40f'))
+      .setColor(isPlayerBJ && !isDealerBJ ? '#57F287' : (isDealerBJ && !isPlayerBJ ? '#ED4245' : '#FEE75C'))
       .setDescription(`**Dealer:** ${formatHand(dealerHand)} (Tổng: ${dValue})\n**Player:** ${formatHand(playerHand)} (Tổng: ${pValue})\n\n${resultText}\n**${resultDisplay}**`);
 
     return message.reply({ embeds: [embed] });
@@ -117,7 +117,7 @@ export async function handleBlackjack(message, args) {
 
   const embed = new EmbedBuilder()
     .setTitle('Blackjack')
-    .setColor('#2b2d31')
+    .setColor('#5865F2')
     .setDescription(`**Dealer:** ${formatHand(dealerHand, true)} (Tổng: ❓)\n**Player:** ${formatHand(playerHand)} (Tổng: ${pValue})`);
 
   const row = new ActionRowBuilder().addComponents(
@@ -149,8 +149,8 @@ export async function handleBlackjack(message, args) {
   setTimeout(() => {
     if (activeGames.has(reply.id)) {
       activeGames.delete(reply.id);
-      embed.setDescription(`**Dealer:** ${formatHand(dealerHand)} (Tổng: ${dValue})\n**Player:** ${formatHand(playerHand)} (Tổng: ${pValue})\n\n⏳ Hết thời gian giao kèo! Bạn bị xử thua do quá chậm.\n**Thua: -${amount.toLocaleString()} coins**`);
-      embed.setColor('#e74c3c');
+      embed.setDescription(`**Dealer:** ${formatHand(dealerHand)} (Tổng: ${dValue})\n**Player:** ${formatHand(playerHand)} (Tổng: ${pValue})\n\n⏳ Hết thời gian giao dịch! Bạn bị xử thua do không phản hồi.\n**Thua: -${amount.toLocaleString()} coins**`);
+      embed.setColor('#ED4245');
       reply.edit({ embeds: [embed], components: [] }).catch(() => { });
     }
   }, 60000);
@@ -159,11 +159,11 @@ export async function handleBlackjack(message, args) {
 export async function handleBlackjackInteraction(interaction) {
   const game = activeGames.get(interaction.message.id);
   if (!game) {
-    return interaction.reply({ content: 'Sòng bài này đã hạ màn hoặc sập!', ephemeral: true });
+    return interaction.reply({ content: 'Ván bài Blackjack này đã kết thúc!', ephemeral: true });
   }
 
   if (interaction.user.id !== game.userId) {
-    return interaction.reply({ content: 'Không phải bài của bạn đâu, đừng nhúng tay!', ephemeral: true });
+    return interaction.reply({ content: 'Chỉ người tạo ván bài mới có quyền thao tác!', ephemeral: true });
   }
 
   const { deck, playerHand, dealerHand, amount, username, userId } = game;
@@ -179,15 +179,15 @@ export async function handleBlackjackInteraction(interaction) {
 
       const embed = new EmbedBuilder()
         .setTitle('Blackjack')
-        .setColor('#e74c3c')
-        .setDescription(`**Dealer:** ${formatHand(dealerHand)} (Tổng: ${dValue})\n**Player:** ${formatHand(playerHand)} (Tổng: ${pValue})\n\n💥 Player bust! Bạn thua!\n**Thua: -${amount.toLocaleString()} coins**`);
+        .setColor('#ED4245')
+        .setDescription(`**Dealer:** ${formatHand(dealerHand)} (Tổng: ${dValue})\n**Player:** ${formatHand(playerHand)} (Tổng: ${pValue})\n\n💥 Player Bust! Bạn đã vượt qua 21 và thua cược!\n**Thua: -${amount.toLocaleString()} coins**`);
 
       return interaction.update({ embeds: [embed], components: [] });
     } else {
       // Đang an toàn
       const embed = new EmbedBuilder()
         .setTitle('Blackjack')
-        .setColor('#2b2d31')
+        .setColor('#5865F2')
         .setDescription(`**Dealer:** ${formatHand(dealerHand, true)} (Tổng: ❓)\n**Player:** ${formatHand(playerHand)} (Tổng: ${pValue})`);
 
       return interaction.update({ embeds: [embed] });
@@ -203,7 +203,7 @@ export async function handleBlackjackInteraction(interaction) {
     // Mở bài Dealer ngay lập tức và xóa nút bấm
     let embed = new EmbedBuilder()
       .setTitle('Blackjack')
-      .setColor('#f39c12')
+      .setColor('#5865F2')
       .setDescription(`**Dealer:** ${formatHand(dealerHand)} (Tổng: ${dValue})\n**Player:** ${formatHand(playerHand)} (Tổng: ${pValue})`);
 
     await interaction.update({ embeds: [embed], components: [] });
@@ -228,10 +228,10 @@ export async function handleBlackjackInteraction(interaction) {
     let isTie = false;
 
     if (dValue > 21) {
-      resultText = '💥 Dealer bust! Bạn thắng!';
+      resultText = '💥 Dealer Bust! Bạn thắng!';
       isWin = true;
     } else if (dValue > pValue) {
-      resultText = '❌ Dealer thắng! Bạn thua!';
+      resultText = '💥 Dealer thắng! Bạn thua!';
     } else if (dValue < pValue) {
       resultText = '🎉 Bạn thắng!';
       isWin = true;
@@ -252,7 +252,7 @@ export async function handleBlackjackInteraction(interaction) {
 
     embed = new EmbedBuilder()
       .setTitle('Blackjack')
-      .setColor(isWin ? '#2ecc71' : (isTie ? '#f1c40f' : '#e74c3c'))
+      .setColor(isWin ? '#57F287' : (isTie ? '#FEE75C' : '#ED4245'))
       .setDescription(`**Dealer:** ${formatHand(dealerHand)} (Tổng: ${dValue})\n**Player:** ${formatHand(playerHand)} (Tổng: ${pValue})\n\n${resultText}\n**${resultDisplay}**`);
 
     return interaction.message.edit({ embeds: [embed] }).catch(() => { });

@@ -29,6 +29,14 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema)
 
+const wordChainSchema = new mongoose.Schema({
+  channelId: { type: String, required: true, unique: true },
+  usedWords: { type: [String], default: [] },
+  gameCount: { type: Number, default: 0 }
+})
+
+const WordChain = mongoose.model('WordChain', wordChainSchema)
+
 export async function getBalance(userId, username) {
   if (!isConnected) return 1000
   try {
@@ -186,3 +194,41 @@ export async function consumeItem(userId, itemId) {
     return false
   }
 }
+
+// ========================
+// HỆ THỐNG GAME NỐI TỪ
+// ========================
+
+export async function getWordChainHistory(channelId) {
+  if (!isConnected) return null
+  try {
+    return await WordChain.findOne({ channelId })
+  } catch (error) {
+    return null
+  }
+}
+
+export async function saveWordChainHistory(channelId, usedWords, gameCount) {
+  if (!isConnected) return false
+  try {
+    await WordChain.findOneAndUpdate(
+      { channelId },
+      { usedWords, gameCount },
+      { upsert: true }
+    )
+    return true
+  } catch (error) {
+    return false
+  }
+}
+
+export async function clearWordChainHistory(channelId) {
+  if (!isConnected) return false
+  try {
+    await WordChain.deleteOne({ channelId })
+    return true
+  } catch (error) {
+    return false
+  }
+}
+

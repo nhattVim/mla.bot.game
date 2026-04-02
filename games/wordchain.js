@@ -1,5 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
-import { updateBalance } from '../utils/db.js';
+import { updateBalance, getWordChainHistory, saveWordChainHistory, clearWordChainHistory } from '../utils/db.js';
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
@@ -7,6 +7,7 @@ const wordsList = require('an-array-of-english-words');
 const wordsSet = new Set(wordsList);
 
 export const activeWordChains = new Map();
+export const channelWordHistory = new Map();
 
 const EMOJI_NUMBERS = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
 
@@ -17,7 +18,7 @@ export async function handleWordChainCommand(message, args) {
   if (action === 'stop') {
     if (activeWordChains.has(channelId)) {
       activeWordChains.delete(channelId);
-      return message.reply('Đã kết thúc trò chơi Nối Từ ở phòng này.');
+      return message.reply('Đã kết thúc trò chơi Nối Từ ở phòng này. (Lịch sử các từ dùng vẫn được giữ nguyên trong DB)');
     } else {
       return message.reply('Hiện không có ván Nối Từ nào đang hoạt động ở đây.');
     }
@@ -29,17 +30,30 @@ export async function handleWordChainCommand(message, args) {
     }
 
     // Lấy random 1 từ có ít nhất 4 chữ cái làm mốc
+    if (!channelWordHistory.has(channelId)) {
+      const dbHistory = await getWordChainHistory(channelId);
+      if (dbHistory) {
+        channelWordHistory.set(channelId, { usedWords: new Set(dbHistory.usedWords), gameCount: dbHistory.gameCount });
+      } else {
+        channelWordHistory.set(channelId, { usedWords: new Set(), gameCount: 0 });
+      }
+    }
+    const history = channelWordHistory.get(channelId);
+
     let startWord = '';
-    while (startWord.length < 4) {
+    while (startWord.length < 4 || history.usedWords.has(startWord)) {
       startWord = wordsList[Math.floor(Math.random() * wordsList.length)];
     }
+
+    history.usedWords.add(startWord);
+    saveWordChainHistory(channelId, Array.from(history.usedWords), history.gameCount).catch(() => {});
 
     const currentLetter = startWord[startWord.length - 1];
 
     const game = {
       channelId: channelId,
       currentLetter: currentLetter,
-      usedWords: new Set([startWord]),
+      history: history,
       scores: {}, // { userId: { 'a': 1, 'b': 2 } }
       lastUserId: null
     };
@@ -78,7 +92,7 @@ export async function handleWordChainMessage(message) {
   if (content[0] !== game.currentLetter) return;
 
   // Lọc từ dùng rồi
-  if (game.usedWords.has(content)) {
+  if (game.history.usedWords.has(content)) {
     return message.react('🔁').catch(() => { });
   }
 
@@ -93,9 +107,10 @@ export async function handleWordChainMessage(message) {
   }
 
   // Khúc này từ hoàn toàn hợp lệ
-  game.usedWords.add(content);
+  game.history.usedWords.add(content);
   game.lastUserId = message.author.id;
-
+  saveWordChainHistory(channelId, Array.from(game.history.usedWords), game.history.gameCount).catch(() => {});
+  
   // Gắn điểm tích lũy theo kí tự khởi đầu
   const startChar = content[0];
   const userId = message.author.id;
@@ -123,11 +138,24 @@ export async function handleWordChainMessage(message) {
     // Chỉ thưởng thêm 9900 coins ở đây vì họ vừa được nhận +100 ở trên rồi (tổng 10000)
     await updateBalance(userId, message.author.username, 9900);
 
+    game.history.gameCount += 1;
+    let resetMsg = '';
+    
+    if (game.history.gameCount >= 10) {
+        game.history.usedWords.clear();
+        game.history.gameCount = 0;
+        clearWordChainHistory(channelId).catch(() => {});
+        resetMsg = `\n\n🔄 **Đã đạt giới hạn 10 ván. Bộ nhớ các từ đã dùng vừa được xóa sạch!**`;
+    } else {
+        saveWordChainHistory(channelId, Array.from(game.history.usedWords), game.history.gameCount).catch(() => {});
+        resetMsg = `\n*(Lưu ý: Các từ đã dùng ở ván này sẽ tiếp tục bị cấm ở ván sau!)*`;
+    }
+
     const winEmbed = new EmbedBuilder()
       .setTitle('Người Chiến Thắng Nối Từ!')
       .setColor('#57F287')
       .setDescription(
-        `<@${userId}> đã thành công nối đủ **10 từ tiếng Anh** bắt đầu bằng chữ cái **${startChar.toUpperCase()}**!\n\nNhận phần thưởng xứng đáng: **10,000 coins** 🎉\nTrò chơi đã tự động thiết lập lại. Sử dụng \`!noitu start\` để mở lại phòng.`
+        `<@${userId}> đã thành công nối đủ **10 từ tiếng Anh** bắt đầu bằng chữ cái **${startChar.toUpperCase()}**!\n\nNhận phần thưởng xứng đáng: **10,000 coins** 🎉\nTrò chơi đã kết thúc. Sử dụng \`!noitu start\` để mở lại phòng.${resetMsg}`
       );
 
     await message.channel.send({ embeds: [winEmbed] });

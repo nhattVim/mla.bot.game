@@ -16,7 +16,6 @@ export async function handleWordChainCommand(message, args) {
 
   if (action === 'stop') {
     if (activeWordChains.has(channelId)) {
-      clearTimeout(activeWordChains.get(channelId).timeout);
       activeWordChains.delete(channelId);
       return message.reply('Đã kết thúc trò chơi Nối Từ ở phòng này.');
     } else {
@@ -41,12 +40,10 @@ export async function handleWordChainCommand(message, args) {
       channelId: channelId,
       currentLetter: currentLetter,
       usedWords: new Set([startWord]),
-      scores: {}, // { userId: { 'a': 1, 'b': 2 } }
-      timeout: null
+      scores: {} // { userId: { 'a': 1, 'b': 2 } }
     };
 
     activeWordChains.set(channelId, game);
-    resetTimeout(channelId, message.channel);
 
     const embed = new EmbedBuilder()
       .setTitle('Game Nối Từ Bắt Đầu!')
@@ -102,9 +99,6 @@ export async function handleWordChainMessage(message) {
   game.scores[userId][startChar] += 1;
   const currentCount = game.scores[userId][startChar];
 
-  // Refresh timeout vì có người chơi
-  resetTimeout(channelId, message.channel);
-
   // Cập nhật chữ yêu cầu tiếp theo
   game.currentLetter = content[content.length - 1];
 
@@ -127,7 +121,6 @@ export async function handleWordChainMessage(message) {
 
     await message.channel.send({ embeds: [winEmbed] });
 
-    clearTimeout(game.timeout);
     activeWordChains.delete(channelId);
     return;
   }
@@ -136,23 +129,4 @@ export async function handleWordChainMessage(message) {
   if (currentCount > 0 && currentCount < 10) {
     await message.react(EMOJI_NUMBERS[currentCount]).catch(() => {});
   }
-}
-
-function resetTimeout(channelId, channel) {
-  const game = activeWordChains.get(channelId);
-  if (!game) return;
-
-  if (game.timeout) clearTimeout(game.timeout);
-
-  game.timeout = setTimeout(() => {
-    if (activeWordChains.has(channelId)) {
-      activeWordChains.delete(channelId);
-      
-      const timeoutEmbed = new EmbedBuilder()
-        .setColor('#ED4245')
-        .setDescription(`Ván Nối Từ đã bị hủy tự động vì không có ai tham gia trong 5 phút.`);
-
-      channel.send({ embeds: [timeoutEmbed] }).catch(() => {});
-    }
-  }, 5 * 60 * 1000); // 5 minutes inactivity
 }

@@ -49,7 +49,7 @@ export async function handleWordChainCommand(message, args) {
       .setTitle('Game Nối Từ Bắt Đầu!')
       .setColor('#5865F2')
       .setDescription(
-        `Luật chơi: Mỗi người nhắn một từ tiếng Anh hợp lệ bắt đầu bằng chữ cái cuối cùng của từ trước đó.\nAI TÍCH LŨY ĐỦ **10 LẦN GHÉP TỪ CHO MỘT CHỮ CÁI** SẼ CHIẾN THẮNG (Phần thưởng: 5000 Coins).\n\nTừ khởi đầu: **${startWord.toUpperCase()}**\n\nMời người chơi đầu tiên nhắn từ tiếp tay bắt đầu bằng chữ: **${currentLetter.toUpperCase()}**`
+        `Luật chơi: Mỗi người nhắn một từ tiếng Anh hợp lệ bắt đầu bằng chữ cái cuối cùng của từ trước đó.\nAI TÍCH LŨY ĐỦ **10 LẦN GHÉP TỪ CHO MỘT CHỮ CÁI** SẼ CHIẾN THẮNG (Phần thưởng cuối: 10,000 Coins. Thưởng lẻ: +100 coins/từ).\n\nTừ khởi đầu: **${startWord.toUpperCase()}**\n\nMời người chơi đầu tiên nhắn từ tiếp tay bắt đầu bằng chữ: **${currentLetter.toUpperCase()}**`
       );
 
     return message.channel.send({ embeds: [embed] });
@@ -99,6 +99,9 @@ export async function handleWordChainMessage(message) {
   game.scores[userId][startChar] += 1;
   const currentCount = game.scores[userId][startChar];
 
+  // Thưởng 100 coins cho mỗi từ ghép đúng
+  await updateBalance(userId, message.author.username, 100);
+
   // Cập nhật chữ yêu cầu tiếp theo
   game.currentLetter = content[content.length - 1];
 
@@ -110,13 +113,14 @@ export async function handleWordChainMessage(message) {
     await message.react('🔟').catch(() => {});
     await message.react('🎉').catch(() => {});
 
-    await updateBalance(userId, message.author.username, 5000);
+    // Chỉ thưởng thêm 9900 coins ở đây vì họ vừa được nhận +100 ở trên rồi (tổng 10000)
+    await updateBalance(userId, message.author.username, 9900);
 
     const winEmbed = new EmbedBuilder()
       .setTitle('Người Chiến Thắng Nối Từ!')
       .setColor('#57F287')
       .setDescription(
-        `<@${userId}> đã thành công nối đủ **10 từ tiếng Anh** bắt đầu bằng chữ cái **${startChar.toUpperCase()}**!\n\nNhận phần thưởng xứng đáng: **5,000 coins** 🎉\nTrò chơi đã tự động thiết lập lại. Sử dụng \`!noitu start\` để mở lại phòng.`
+        `<@${userId}> đã thành công nối đủ **10 từ tiếng Anh** bắt đầu bằng chữ cái **${startChar.toUpperCase()}**!\n\nNhận phần thưởng xứng đáng: **10,000 coins** 🎉\nTrò chơi đã tự động thiết lập lại. Sử dụng \`!noitu start\` để mở lại phòng.`
       );
 
     await message.channel.send({ embeds: [winEmbed] });

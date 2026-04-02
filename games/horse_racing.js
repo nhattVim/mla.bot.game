@@ -1,5 +1,4 @@
-import { EmbedBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js'
-import { createCanvas } from 'canvas'
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js'
 import { getBalance, updateBalance, checkBalance, consumeItem } from '../utils/db.js'
 
 const activeGames = new Map()
@@ -9,39 +8,6 @@ const LINE_COLORS = ['🟥', '🟦', '🟩', '🟨', '🟪']
 const EMPTY_BLOCK = '⬛'
 const TRACK_LENGTH = 20
 const WINNING_REWARD_MULTIPLIER = 4
-
-function drawHorseResult(winningHorseIndex) {
-  const canvas = createCanvas(400, 300)
-  const ctx = canvas.getContext('2d')
-
-  ctx.fillStyle = '#2b2d31'
-  ctx.fillRect(0, 0, 400, 300)
-
-  ctx.fillStyle = '#4cd137'
-  ctx.fillRect(100, 200, 200, 100)
-  ctx.fillStyle = '#44bd32'
-  ctx.fillRect(100, 190, 200, 10)
-
-  ctx.shadowColor = 'rgba(0,0,0,0.5)'
-  ctx.shadowBlur = 10
-  ctx.shadowOffsetY = 5
-  ctx.fillStyle = '#f1c40f'
-  ctx.font = '80px sans-serif'
-  ctx.textAlign = 'center'
-  ctx.fillText('🏆', 200, 110)
-  ctx.shadowBlur = 0
-
-  const textColors = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6']
-  ctx.fillStyle = textColors[winningHorseIndex]
-  ctx.font = 'bold 45px sans-serif'
-  ctx.fillText(`NGỰA SỐ ${winningHorseIndex + 1}`, 200, 170)
-
-  ctx.fillStyle = '#ffffff'
-  ctx.font = 'bold 30px sans-serif'
-  ctx.fillText('WINNER', 200, 250)
-
-  return new AttachmentBuilder(canvas.toBuffer(), { name: 'horse-result.png' })
-}
 
 export async function handleHorseRacing(message, args) {
   const channelId = message.channel.id
@@ -53,7 +19,7 @@ export async function handleHorseRacing(message, args) {
   const game = activeGames.get(channelId)
 
   if (game.state !== 'IDLE') {
-    return message.reply('Sàn đua đang hot, đợi ngựa cán đích hoặc cổng cược đóng rồi gõ lệnh lại bạn hiền!')
+    return message.reply('Trường đua đang hoạt động, xin vui lòng chờ đợi!')
   }
 
   game.state = 'BETTING'
@@ -63,9 +29,9 @@ export async function handleHorseRacing(message, args) {
   const targetMs = Date.now() + 30000;
 
   const embed = new EmbedBuilder()
-    .setTitle('🏁 TRƯỜNG ĐUA NGỰA MỞ CỬA 🏁')
-    .setDescription(`Cổng cược sẽ đóng **<t:${endTime}:R>**!\n\n*(Tỷ lệ ăn thưởng x4)*\n**Hãy bấm vào Nút của ngựa bạn muốn cược bên dưới!**`)
-    .setColor('#3498db')
+    .setTitle('Trường Đua Đã Mở')
+    .setDescription(`Cổng cược sẽ đóng **<t:${endTime}:R>**!\n\n*(Tỷ lệ ăn thưởng x4)*\n**Hãy bấm vào nút của ngựa bạn muốn cược bên dưới!**`)
+    .setColor('#5865F2')
 
   // Gắn 5 Nút ứng với 5 ngựa
   const row = new ActionRowBuilder()
@@ -112,10 +78,10 @@ export async function handleHorseRacingInteraction(interaction) {
     await interaction.showModal(modal)
   } else if (interaction.isModalSubmit()) {
     const channelId = interaction.channelId
-    if (!activeGames.has(channelId)) return interaction.reply({ content: 'Sàn đua không còn tồn tại!', ephemeral: true })
+    if (!activeGames.has(channelId)) return interaction.reply({ content: 'Trường đua này không tồn tại.', ephemeral: true })
 
     const game = activeGames.get(channelId)
-    if (game.state !== 'BETTING') return interaction.reply({ content: 'Cổng cược đã đóng lại mất rồi!', ephemeral: true })
+    if (game.state !== 'BETTING') return interaction.reply({ content: 'Đã hết thời gian đặt cược.', ephemeral: true })
 
     const horseIndex = parseInt(interaction.customId.split('_')[2], 10)
     const amountStr = interaction.fields.getTextInputValue('amount').toLowerCase()
@@ -128,12 +94,12 @@ export async function handleHorseRacingInteraction(interaction) {
     }
 
     if (isNaN(amount) || amount <= 0) {
-      return interaction.reply({ content: 'Bạn nhập số tiền không hợp lệ!', ephemeral: true })
+      return interaction.reply({ content: 'Số tiền không hợp lệ.', ephemeral: true })
     }
 
     const hasEnough = await checkBalance(interaction.user.id, interaction.user.username, amount)
     if (!hasEnough) {
-      return interaction.reply({ content: 'Bạn không đủ tiền để cược kèo này đâu!', ephemeral: true })
+      return interaction.reply({ content: 'Bạn không có đủ xu để đặt cược.', ephemeral: true })
     }
 
     await updateBalance(interaction.user.id, interaction.user.username, -amount)
@@ -146,7 +112,7 @@ export async function handleHorseRacingInteraction(interaction) {
     })
 
     return interaction.reply({
-      content: `💸 **<@${interaction.user.id}>** vừa đặt cược **${amount.toLocaleString()} coins** vào Ngựa số **${horseIndex + 1}** ${HORSE_EMOJIS[horseIndex]}!`,
+      content: `💸 **<@${interaction.user.id}>** đã đặt cược **${amount.toLocaleString()} coins** vào Ngựa số **${horseIndex + 1}** ${HORSE_EMOJIS[horseIndex]}.`,
       ephemeral: false
     })
   }
@@ -158,11 +124,11 @@ async function startRace(channel, channelId) {
 
   // Tắt nút bấm khi vô race
   if (game.startMessage) {
-    await game.startMessage.edit({ components: [] }).catch(() => {})
+    await game.startMessage.edit({ components: [] }).catch(() => { })
   }
 
   if (game.bets.length === 0) {
-    channel.send('Không có ai cược! Hủy cuộc đua.')
+    channel.send('Không có người chơi đặt cược. Hủy cuộc đua.')
     activeGames.delete(channelId)
     return
   }
@@ -181,7 +147,7 @@ async function startRace(channel, channelId) {
       .join('\n\n')
   }
 
-  const raceEmbed = new EmbedBuilder().setTitle('🏇 CUỘC ĐUA BẮT ĐẦU 🏇').setColor('#e74c3c').setDescription(renderTrack())
+  const raceEmbed = new EmbedBuilder().setTitle('Cuộc Đua Bắt Đầu').setColor('#5865F2').setDescription(renderTrack())
 
   const raceMsg = await channel.send({ embeds: [raceEmbed] })
 
@@ -192,7 +158,7 @@ async function startRace(channel, channelId) {
     await sleep(2000)
 
     let isFinished = false
-    let eventLog = 'Khán giả đang hò reo cổ vũ...'
+    let eventLog = 'Các chú ngựa đang tăng tốc...'
 
     const hasEvent = Math.random() < 0.3 // 30% chance for an event
     let eventHorse = -1
@@ -209,13 +175,13 @@ async function startRace(channel, channelId) {
       if (i === eventHorse) {
         if (eventType === 0) {
           step += 3
-          eventLog = `⚡ KIẾN TẠO! Ngựa số ${i + 1} bứt tốc kinh hoàng!`
+          eventLog = `⚡ Ngựa số ${i + 1} đang bứt tốc!`
         } else if (eventType === 1) {
           step = 0
-          eventLog = `💥 TAI NẠN! Ngựa số ${i + 1} bị vấp ngã mất chớn!`
+          eventLog = `💥 Ngựa số ${i + 1} vấp ngã!`
         } else if (eventType === 2) {
           step = -1
-          eventLog = `🌪️ LÚ LẪN! Ngựa số ${i + 1} hoảng loạn lùi về phía sau!`
+          eventLog = `🌪️ Ngựa số ${i + 1} gặp sự cố đi lùi!`
         }
       }
 
@@ -231,7 +197,7 @@ async function startRace(channel, channelId) {
     }
 
     raceEmbed.setDescription(`${renderTrack()}\n\n🎙️ **Bình luận trực tiếp:**\n> *${eventLog}*`)
-    await raceMsg.edit({ embeds: [raceEmbed] }).catch(() => {})
+    await raceMsg.edit({ embeds: [raceEmbed] }).catch(() => { })
 
     if (isFinished) break
   }
@@ -270,18 +236,15 @@ async function startRace(channel, channelId) {
     }
   }
 
-  if (totalRewardStr === '') totalRewardStr = 'Trắng tay hết ráo! Không ai cược trúng ngựa vô địch 😢\n'
-  if (rescuedStr !== '') totalRewardStr += `\n**DANH SÁCH BẢO HỘ LƯỚI TỬ THẦN:**\n${rescuedStr}`
-
-  const attachment = drawHorseResult(winningHorse)
+  if (totalRewardStr === '') totalRewardStr = 'Không có ai đoán trúng kết quả.\n'
+  if (rescuedStr !== '') totalRewardStr += `\n**BẢO HỘ TỬ THẦN:**\n${rescuedStr}`
 
   const resultEmbed = new EmbedBuilder()
-    .setTitle('🏆 CUỘC ĐUA KẾT THÚC 🏆')
-    .setColor('#f1c40f')
-    .setImage('attachment://horse-result.png')
-    .setDescription(`**Ngựa số ${winningHorse + 1} vô địch!**\n\n**Kết quả trả thưởng:**\n${totalRewardStr}`)
+    .setTitle('Kết Quả Đua Ngựa')
+    .setColor('#57F287')
+    .setDescription(`**Ngựa số ${winningHorse + 1} vô địch!** 🏆\n\n**Kết quả trả thưởng:**\n${totalRewardStr}`)
 
-  await channel.send({ embeds: [resultEmbed], files: [attachment] })
+  await channel.send({ embeds: [resultEmbed] })
 
   activeGames.delete(channelId)
 }

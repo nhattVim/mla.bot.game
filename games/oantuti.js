@@ -18,8 +18,8 @@ export async function handleOanTuTi(message, args) {
     return message.reply('Sai cú pháp! Hãy gõ: `!ott @Người_chơi_2 <số_tiền>`')
   }
 
-  if (targetUser.bot) return message.reply('Đừng gạ gẫm tui! Tui là Máy nên lúc nào cũng thắng ráng chịu đó kề!')
-  if (targetUser.id === message.author.id) return message.reply('Tự kỷ à? Đánh với người khác đi bro!')
+  if (targetUser.bot) return message.reply('Bạn không thể thách đấu với hệ thống!')
+  if (targetUser.id === message.author.id) return message.reply('Bạn không thể tự thách đấu chính mình.')
 
   let amount
   if (amountStr === 'all' || amountStr === 'allin') {
@@ -35,7 +35,7 @@ export async function handleOanTuTi(message, args) {
   // Check số dư người thách xem có đủ tiền lập phòng hay không (chưa bị trừ cho đến khi target đồng ý)
   const hasEnough = await checkBalance(message.author.id, message.author.username, amount)
   if (!hasEnough) {
-    return message.reply('Nghèo mà bày đặt thách đấu! Bạn không đủ tiền trong ví.')
+    return message.reply('Bạn không có đủ xu để thách đấu.')
   }
 
   const gameId = Date.now().toString()
@@ -44,7 +44,7 @@ export async function handleOanTuTi(message, args) {
     .setTitle('⚔️ THÁCH ĐẬU OẲN TÙ TÌ ⚔️')
     .setColor('#e74c3c')
     .setDescription(
-      `<@${message.author.id}> đang gạ kèo đấm nhau với <@${targetUser.id}>!\n\n💰 **Tiền cược:** ${amount.toLocaleString()} coins.\n*(Số tiền sẽ chỉ bị trừ khi được chấp nhận)*\n\nHãy bấm nút **Chấp nhận** hoặc **Từ chối** bên dưới.`
+      `<@${message.author.id}> đã gửi lời thách đấu tới <@${targetUser.id}>!\n\n💰 **Tiền cược:** ${amount.toLocaleString()} coins.\n\nVui lòng chọn **Chấp nhận** hoặc **Từ chối** bên dưới.`
     )
 
   const row = new ActionRowBuilder().addComponents(
@@ -64,7 +64,7 @@ export async function handleOanTuTi(message, args) {
     timeout: setTimeout(async () => {
       if (activeOttGames.has(gameId) && activeOttGames.get(gameId).state === 'PENDING') {
         activeOttGames.delete(gameId)
-        await startMsg.edit({ components: [], content: `Hết giờ! Hủy kèo thách đấu do <@${targetUser.id}> không phản hồi.` }).catch(() => {})
+        await startMsg.edit({ components: [], content: `Đã hết thời gian phản hồi. Hủy thách đấu.` }).catch(() => { })
       }
     }, 60000)
   })
@@ -79,7 +79,7 @@ export async function handleOanTuTiInteraction(interaction) {
   const gameId = parts[2]
 
   if (!activeOttGames.has(gameId)) {
-    return interaction.reply({ content: 'Trận thách đấu này không tốn tại hoặc đã kết thúc!', ephemeral: true })
+    return interaction.reply({ content: 'Trận thách đấu này không tồn tại hoặc đã kết thúc.', ephemeral: true })
   }
 
   const game = activeOttGames.get(gameId)
@@ -87,17 +87,17 @@ export async function handleOanTuTiInteraction(interaction) {
   // Xử lý Hủy/Chấp nhận
   if (action === 'decline') {
     if (interaction.user.id !== game.target.id && interaction.user.id !== game.challenger.id) {
-      return interaction.reply({ content: 'Bạn không phải người trong cuộc!', ephemeral: true })
+      return interaction.reply({ content: 'Bạn không có quyền thao tác trong trận đấu này.', ephemeral: true })
     }
 
     clearTimeout(game.timeout)
     activeOttGames.delete(gameId)
-    return interaction.update({ components: [], content: `🚫 Kèo thách đấu đã bị hủy bởi <@${interaction.user.id}>.`, embeds: [] })
+    return interaction.update({ components: [], content: `🚫 Thách đấu đã bị hủy bởi <@${interaction.user.id}>.`, embeds: [] })
   }
 
   if (action === 'accept') {
     if (interaction.user.id !== game.target.id) {
-      return interaction.reply({ content: 'Chỉ có người bị thách đấu mới được ấn nút này!', ephemeral: true })
+      return interaction.reply({ content: 'Chỉ người được thách đấu mới có thể chấp nhận.', ephemeral: true })
     }
 
     // Xác nhận tiền 2 bên
@@ -105,12 +105,12 @@ export async function handleOanTuTiInteraction(interaction) {
     if (!challengerHasEnough) {
       clearTimeout(game.timeout)
       activeOttGames.delete(gameId)
-      return interaction.update({ components: [], content: `❌ Kèo bị hủy vì **thằng thách đấu** (<@${game.challenger.id}>) đã đốt sạch tiền ở trò khác rồi! 🤷‍♂️`, embeds: [] })
+      return interaction.update({ components: [], content: `❌ Thách đấu bị hủy do người gửi không còn đủ số dư cược.`, embeds: [] })
     }
 
     const targetHasEnough = await checkBalance(game.target.id, game.target.name, game.amount)
     if (!targetHasEnough) {
-      return interaction.reply({ content: 'Khách yêu ơi, nạp thêm tiền đi, không đủ cược rồi!', ephemeral: true })
+      return interaction.reply({ content: 'Bạn không có đủ xu để chấp nhận thách đấu này.', ephemeral: true })
     }
 
     // Bắt đầu khóa tiền
@@ -148,7 +148,7 @@ export async function handleOanTuTiInteraction(interaction) {
     else if (interaction.user.id === game.target.id) playerKey = 'target'
 
     if (!playerKey) {
-      return interaction.reply({ content: 'Đang đấm nhau đừng vô hóng chuyện! Bạn không được chơi.', ephemeral: true })
+      return interaction.reply({ content: 'Bạn không có quyền tham gia trận đấu này.', ephemeral: true })
     }
 
     if (game.state !== 'CHOOSING') {
@@ -156,13 +156,13 @@ export async function handleOanTuTiInteraction(interaction) {
     }
 
     if (game[playerKey].ready) {
-      return interaction.reply({ content: `Bạn đã khóa vũ khí! Đừng tính đường ăn gian click lại.`, ephemeral: true })
+      return interaction.reply({ content: `Bạn đã xác nhận lựa chọn.`, ephemeral: true })
     }
 
     game[playerKey].choice = weapon
     game[playerKey].ready = true
 
-    await interaction.reply({ content: `✅ Bạn đã lụm **${CHOICES[weapon].name}** ${CHOICES[weapon].emoji}! Chờ đứa đối diện khui bài.`, ephemeral: true })
+    await interaction.reply({ content: `✅ Đã lưu lựa chọn **${CHOICES[weapon].name}** ${CHOICES[weapon].emoji} của bạn.`, ephemeral: true })
 
     // Nếu cả 2 đều đã chọn bài -> chốt
     if (game.challenger.ready && game.target.ready) {
@@ -178,26 +178,26 @@ async function resolveAFKTimeout(gameId) {
 
   activeOttGames.delete(gameId)
 
-  await game.message.edit({ components: [] }).catch(() => {})
+  await game.message.edit({ components: [] }).catch(() => { })
 
   const cReady = game.challenger.ready
   const tReady = game.target.ready
 
-  let resultEmbed = new EmbedBuilder().setTitle('💤 CÓ NGƯỜI AFK!').setColor('#95a5a6')
+  let resultEmbed = new EmbedBuilder().setTitle('Hết Thời Gian').setColor('#ED4245')
 
   if (!cReady && !tReady) {
     // Cả 2 đều AFK, Hoàn tiền
     await updateBalance(game.challenger.id, game.challenger.name, game.amount)
     await updateBalance(game.target.id, game.target.name, game.amount)
-    resultEmbed.setDescription(`Cả 2 tấu hài không chọn! Hệ thống đã hoàn trả cược.`)
+    resultEmbed.setDescription(`Cả hai người chơi đều không phản hồi! Hệ thống đã hoàn trả tiền cược.`)
   } else if (!cReady && tReady) {
     // Challenger thua AFK
     await updateBalance(game.target.id, game.target.name, game.amount * 2)
-    resultEmbed.setDescription(`XỬ THUA: <@${game.challenger.id}> đứng như trời trồng!\n<@${game.target.id}> đương nhiên bỏ túi **${(game.amount * 2).toLocaleString()} coins** ngàn năm có một.`)
+    resultEmbed.setDescription(`Xử Thua: <@${game.challenger.id}> không phản hồi!\n<@${game.target.id}> nhận được **${(game.amount * 2).toLocaleString()} coins**.`)
   } else if (cReady && !tReady) {
     // Target thua AFK
     await updateBalance(game.challenger.id, game.challenger.name, game.amount * 2)
-    resultEmbed.setDescription(`XỬ THUA: <@${game.target.id}> ngủ quên trên bàn phím!\n<@${game.challenger.id}> húp trọn **${(game.amount * 2).toLocaleString()} coins**.`)
+    resultEmbed.setDescription(`Xử Thua: <@${game.target.id}> không phản hồi!\n<@${game.challenger.id}> nhận được **${(game.amount * 2).toLocaleString()} coins**.`)
   }
 
   await game.message.channel.send({ embeds: [resultEmbed] })
@@ -208,19 +208,19 @@ async function resolveGame(gameId) {
   game.state = 'RESOLVING'
   activeOttGames.delete(gameId)
 
-  await game.message.edit({ components: [] }).catch(() => {})
+  await game.message.edit({ components: [] }).catch(() => { })
   const cChoice = CHOICES[game.challenger.choice]
   const tChoice = CHOICES[game.target.choice]
 
   // Animation Xổ bài
-  const frames = ['🔥 Nhận đủ Vũ Khí! **Oẳn...**', '🔥 Nhận đủ Vũ Khí! **Oẳn... Tù...**', '🔥 Nhận đủ Vũ Khí! **Oẳn... Tù... Tì...**', '🔥 Nhận đủ Vũ Khí! **Ra cái gì ra cái này!...**']
+  const frames = ['**Oẳn...**', '**Oẳn... Tù...**', '**Oẳn... Tù... Tì...**', '**Đang mở kết quả...**']
 
   const sleep = (ms) => new Promise((res) => setTimeout(res, ms))
   let animEmbed = EmbedBuilder.from(game.message.embeds[0])
 
   for (const text of frames) {
     animEmbed.setDescription(text)
-    await game.message.edit({ embeds: [animEmbed] }).catch(() => {})
+    await game.message.edit({ embeds: [animEmbed] }).catch(() => { })
     await sleep(1500)
   }
 
@@ -228,12 +228,14 @@ async function resolveGame(gameId) {
   let winner = null
   let loser = null
   let resultText = ''
+  let isTie = false
 
   if (game.challenger.choice === game.target.choice) {
     // Hòa: Hoàn tiền cực đẹp
+    isTie = true
     await updateBalance(game.challenger.id, game.challenger.name, game.amount)
     await updateBalance(game.target.id, game.target.name, game.amount)
-    resultText = `🏳️ **HÒA NHAU!** Cả 2 đều ra ${cChoice.emoji}!\nTiền cược đã được hoàn trả nguyên vẹn về 2 túi.`
+    resultText = `🤝 **HÒA NHAU!** Cả hai đều ra ${cChoice.emoji}!\nTiền cược đã được hoàn trả.`
   } else {
     // Check ai thắng ai bại
     if (cChoice.beats === game.target.choice) {
@@ -254,16 +256,16 @@ async function resolveGame(gameId) {
     const hasShield = await consumeItem(loser.id, 'bua_mien_tu')
     if (hasShield) {
       await updateBalance(loser.id, loser.name, game.amount)
-      rescuedStr = `\n\n🛡️ **CÔNG HIỆU BÙA CHÚ:** Khâm phục Bùa Miễn Tử của <@${loser.id}>, hoàn trả **${game.amount.toLocaleString()} coins** về két sắt!`
+      rescuedStr = `\n\n🛡️ **BẢO HỘ TỬ THẦN:** Bùa Miễn Tử bảo vệ <@${loser.id}>, hoàn trả **${game.amount.toLocaleString()} coins**!`
     }
 
-    resultText = `<@${game.challenger.id}>: **${cChoice.name}** ${cChoice.emoji}  💥VS💥  ${tChoice.emoji} **${tChoice.name}** :<@${game.target.id}>\n\n🏆 **Bên Thắng:** <@${winner.id}>\n💸 Lấy toàn bộ **${finalWinAmt.toLocaleString()} coins** trên giàn khoan! ${hasX2 ? '(Vé x2 💰)' : ''}${rescuedStr}`
+    resultText = `<@${game.challenger.id}>: **${cChoice.name}** ${cChoice.emoji}  💥VS💥  ${tChoice.emoji} **${tChoice.name}** :<@${game.target.id}>\n\n🏆 **Bên Thắng:** <@${winner.id}>\n🎉 Nhận thưởng **${finalWinAmt.toLocaleString()} coins**! ${hasX2 ? '(Vé x2 💰)' : ''}${rescuedStr}`
   }
 
   const finalEmbed = new EmbedBuilder()
-    .setTitle('🏆 KẾT QUẢ ĐẤM NHAU OẲN TÙ TÌ 🏆')
-    .setColor(winner ? '#2ecc71' : '#f39c12')
+    .setTitle('Kết Quả Oẳn Tù Tì')
+    .setColor(winner ? '#57F287' : (isTie ? '#FEE75C' : '#ED4245'))
     .setDescription(resultText)
 
-  await game.message.edit({ embeds: [finalEmbed] }).catch(() => {})
+  await game.message.edit({ embeds: [finalEmbed] }).catch(() => { })
 }

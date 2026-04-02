@@ -1,5 +1,4 @@
-import { EmbedBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
-import { createCanvas } from 'canvas';
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 import { getBalance, updateBalance, checkBalance, consumeItem } from '../utils/db.js';
 
 const activeGames = new Map();
@@ -19,38 +18,6 @@ const COLORS = {
   bau: '#f39c12', cua: '#e74c3c', tom: '#e67e22',
   ca: '#3498db', ga: '#f1c40f', nai: '#8e44ad'
 };
-
-function drawBauCuaResult(results) {
-  const canvas = createCanvas(600, 200);
-  const ctx = canvas.getContext('2d');
-
-  ctx.fillStyle = '#2b2d31';
-  ctx.fillRect(0, 0, 600, 200);
-
-  results.forEach((animal, i) => {
-    const startX = 40 + (i * 180);
-    const startY = 30;
-
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetY = 5;
-
-    ctx.fillStyle = COLORS[animal] || '#ffffff';
-    ctx.beginPath();
-    ctx.roundRect(startX, startY, 150, 140, 20);
-    ctx.fill();
-
-    ctx.shadowBlur = 0;
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '70px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(ICONS[animal], startX + 75, startY + 75);
-  });
-
-  return new AttachmentBuilder(canvas.toBuffer(), { name: 'baucua-result.png' });
-}
 
 export async function handleBauCua(message, args) {
   const channelId = message.channel.id;
@@ -251,15 +218,14 @@ async function rollDice(channel, channelId) {
   if (totalWinStr === '') totalWinStr = 'Không có ai đoán trúng hợp lệ.\n';
   if (rescuedStr !== '') totalWinStr += `\n**BẢO HỘ TỬ THẦN:**\n${rescuedStr}`;
 
-  const attachment = drawBauCuaResult(results);
+  const diceStr = `**[ ${ICONS[results[0]]} ] | [ ${ICONS[results[1]]} ] | [ ${ICONS[results[2]]} ]**`;
 
   const resultEmbed = new EmbedBuilder()
     .setTitle('Kết Quả Bầu Cua')
     .setColor('#57F287')
-    .setImage('attachment://baucua-result.png')
-    .setDescription(`**Kết quả trả thưởng:**\n${totalWinStr}`);
+    .setDescription(`Cắm bát:\n${diceStr}\n\n**Kết quả trả thưởng:**\n${totalWinStr}`);
 
-  await channel.send({ embeds: [resultEmbed], files: [attachment] });
+  await channel.send({ embeds: [resultEmbed] });
   await rollingMsg.delete().catch(() => { });
 
   activeGames.delete(channelId);

@@ -19,32 +19,77 @@ const COLORS = {
   ca: '#3498db', ga: '#f1c40f', nai: '#8e44ad'
 };
 
+const MIN_HOST_BALANCE = 20000;
+const GAME_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+function buildBoardEmbed(game, hostId, hostName, endTime) {
+  let description = `**Chủ sòng:** <@${hostId}>\n`;
+  description += `**Trạng thái:** Đang nhận cược (Tự động mở bát lúc <t:${endTime}:t>)\n\n`;
+  description += `*(Trúng 1 lần x1, 2 lần x2, 3 lần x3. Giải vô đền nợ, x2/miễn tử vẫn hoạt động!)*\n\n`;
+  description += `**--- SÀN GIAO DỊCH ---**\n`;
+
+  const stats = {
+    bau: { count: 0, total: 0 },
+    cua: { count: 0, total: 0 },
+    tom: { count: 0, total: 0 },
+    ca: { count: 0, total: 0 },
+    ga: { count: 0, total: 0 },
+    nai: { count: 0, total: 0 }
+  };
+
+  game.bets.forEach(b => {
+    stats[b.animal].count += 1;
+    stats[b.animal].total += b.amount;
+  });
+
+  ANIMALS.forEach(a => {
+    description += `**${EMOJIS[a]}**: ${stats[a].total.toLocaleString()} xu (${stats[a].count} người)\n`;
+  });
+
+  return new EmbedBuilder()
+    .setTitle('🎲 SÒNG BẦU CUA ĐÃ MỞ!')
+    .setDescription(description)
+    .setColor('#5865F2')
+    .setFooter({ text: 'Người chơi dùng nút bên dưới để cược. Chủ sòng có thể Lắc / Mở!' });
+}
+
 export async function handleBauCua(message, args) {
   const channelId = message.channel.id;
 
-  if (!activeGames.has(channelId)) {
-    activeGames.set(channelId, { state: 'IDLE', bets: [], startMessage: null });
+  if (!args[0] || args[0].toLowerCase() !== 'start') {
+    return message.reply('Sử dụng lệnh: `!bc start` để mở sòng.');
   }
 
-  const game = activeGames.get(channelId);
-
-  if (game.state !== 'IDLE') {
+  if (activeGames.has(channelId)) {
     return message.reply('Ván Bầu Cua đang diễn ra, xin vui lòng chờ đợi!');
   }
 
-  game.state = 'BETTING';
-  game.bets = [];
+  const hostHasEnough = await checkBalance(message.author.id, message.author.username, MIN_HOST_BALANCE);
+  if (!hostHasEnough) {
+    return message.reply(`Bạn cần ít nhất **${MIN_HOST_BALANCE.toLocaleString()} xu** để làm chủ sòng!`);
+  }
 
-  const endTime = Math.floor(Date.now() / 1000) + 30;
-  const targetMs = Date.now() + 30000;
+  const targetMs = Date.now() + GAME_TIMEOUT_MS;
+  const endTime = Math.floor(targetMs / 1000);
 
-  const embed = new EmbedBuilder()
-    .setTitle('🎲 SÒNG BẦU CUA ĐÃ MỞ!')
-    .setDescription(`Cổng cược sẽ đóng **<t:${endTime}:R>**!\n\n*(Mỗi con vật xuất hiện 1 lần trả thưởng x1, 2 lần x2, 3 lần x3)*\n**BẤM VÀO CÁC NÚT BÊN DƯỚI ĐỂ ĐẶT CƯỢC!**`)
-    .setColor('#5865F2');
+  const game = {
+    state: 'BETTING',
+    hostId: message.author.id,
+    hostName: message.author.username,
+    bets: [],
+    startMessage: null,
+    targetMs,
+    endTime,
+    updatePending: false
+  };
+
+  activeGames.set(channelId, game);
+
+  const embed = buildBoardEmbed(game, message.author.id, message.author.username, endTime);
 
   const row1 = new ActionRowBuilder();
   const row2 = new ActionRowBuilder();
+  const row3 = new ActionRowBuilder();
 
   ANIMALS.forEach((animal, idx) => {
     const btn = new ButtonBuilder()
@@ -57,48 +102,97 @@ export async function handleBauCua(message, args) {
     else row2.addComponents(btn);
   });
 
-  const startMsg = await message.channel.send({ embeds: [embed], components: [row1, row2] });
+  row3.addComponents(
+    new ButtonBuilder()
+      .setCustomId('bc_host_open')
+      .setLabel('Mở Bát')
+      .setEmoji('🔥')
+      .setStyle(ButtonStyle.Success)
+  );
+
+  const startMsg = await message.channel.send({ embeds: [embed], components: [row1, row2, row3] });
   game.startMessage = startMsg;
 
+  // Auto-update UI interval
+  const updateUiInterval = setInterval(() => {
+    const cg = activeGames.get(channelId);
+    if (!cg || cg.state !== 'BETTING') {
+      clearInterval(updateUiInterval);
+      return;
+    }
+    if (cg.updatePending) {
+      const newEmbed = buildBoardEmbed(cg, cg.hostId, cg.hostName, cg.endTime);
+      cg.startMessage.edit({ embeds: [newEmbed] }).catch(() => {});
+      cg.updatePending = false;
+    }
+  }, 2500);
+
+  // Auto-open interval
   const timer = setInterval(() => {
-    if (!activeGames.has(channelId) || activeGames.get(channelId).state !== 'BETTING') {
+    const cg = activeGames.get(channelId);
+    if (!cg || cg.state !== 'BETTING') {
       clearInterval(timer);
       return;
     }
-    if (Date.now() >= targetMs) {
+    if (Date.now() >= cg.targetMs) {
       clearInterval(timer);
-      rollDice(message.channel, channelId);
+      triggerOpen(channelId, message.client);
     }
   }, 1000);
-
-  return;
 }
 
 export async function handleBauCuaInteraction(interaction) {
+  const channelId = interaction.channelId;
+
   if (interaction.isButton()) {
-    const animal = interaction.customId.split('_')[2];
+    const customId = interaction.customId;
 
-    const modal = new ModalBuilder()
-      .setCustomId(`modal_bc_${animal}`)
-      .setTitle(`Cược vào ${LABELS[animal]} ${ICONS[animal]}`);
+    if (customId === 'bc_host_open') {
+      const game = activeGames.get(channelId);
+      if (!game || game.state !== 'BETTING') {
+         return interaction.reply({ content: 'Sòng này đã đóng hoặc không tồn tại!', ephemeral: true });
+      }
+      if (interaction.user.id !== game.hostId) {
+         return interaction.reply({ content: 'Chỉ có CHỦ SÒNG mới được sử dụng nút này!', ephemeral: true });
+      }
 
-    const amountInput = new TextInputBuilder()
-      .setCustomId('amount')
-      .setLabel("Nhập số tiền cược (hoặc 'all' / 'allin')")
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Ví dụ: 5000')
-      .setRequired(true);
+      interaction.reply({ content: '🔥 Chủ sòng quyết định MỞ BÁT!', ephemeral: false }).then(msg => {
+          setTimeout(() => msg.delete().catch(()=>Object), 2500);
+      });
+      return triggerOpen(channelId, interaction.client);
+    }
 
-    const firstActionRow = new ActionRowBuilder().addComponents(amountInput);
-    modal.addComponents(firstActionRow);
+    if (customId.startsWith('bet_bc_')) {
+      const animal = customId.split('_')[2];
+      const game = activeGames.get(channelId);
+      if (!game || game.state !== 'BETTING') {
+         return interaction.reply({ content: 'Đã hết thời gian đặt cược hoặc sòng không tồn tại!', ephemeral: true });
+      }
+      if (interaction.user.id === game.hostId) {
+         return interaction.reply({ content: 'Chủ sòng không thể tự đặt cược!', ephemeral: true });
+      }
 
-    await interaction.showModal(modal);
-  } else if (interaction.isModalSubmit()) {
-    const channelId = interaction.channelId;
-    if (!activeGames.has(channelId)) return interaction.reply({ content: 'Không tìm thấy Sòng bầu cua nào!', ephemeral: true });
+      const modal = new ModalBuilder()
+        .setCustomId(`modal_bc_${animal}`)
+        .setTitle(`Cược vào ${LABELS[animal]} ${ICONS[animal]}`);
 
+      const amountInput = new TextInputBuilder()
+        .setCustomId('amount')
+        .setLabel("Nhập số tiền cược (hoặc 'all' / 'allin')")
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('Ví dụ: 5000')
+        .setRequired(true);
+
+      const firstActionRow = new ActionRowBuilder().addComponents(amountInput);
+      modal.addComponents(firstActionRow);
+
+      await interaction.showModal(modal);
+    }
+  } else if (interaction.isModalSubmit() && interaction.customId.startsWith('modal_bc_')) {
     const game = activeGames.get(channelId);
-    if (game.state !== 'BETTING') return interaction.reply({ content: 'Đã hết thời gian đặt cược!', ephemeral: true });
+    if (!game || game.state !== 'BETTING') {
+       return interaction.reply({ content: 'Đã hết thời gian đặt cược!', ephemeral: true });
+    }
 
     const animalName = interaction.customId.split('_')[2];
     const amountStr = interaction.fields.getTextInputValue('amount').toLowerCase();
@@ -119,6 +213,7 @@ export async function handleBauCuaInteraction(interaction) {
       return interaction.reply({ content: 'Bạn không có đủ xu để đặt cược.', ephemeral: true });
     }
 
+    // Trừ tiền cược của người chơi ngay lập tức
     await updateBalance(interaction.user.id, interaction.user.username, -amount);
 
     game.bets.push({
@@ -127,106 +222,163 @@ export async function handleBauCuaInteraction(interaction) {
       animal: animalName,
       amount: amount
     });
+    
+    game.updatePending = true;
 
-    return interaction.reply({ content: `💸 **<@${interaction.user.id}>** đã đặt cược **${amount.toLocaleString()} coins** vào **${EMOJIS[animalName]}**!`, ephemeral: false });
+    return interaction.reply({ content: `💸 Bạn đã đặt cược **${amount.toLocaleString()} xu** vào **${EMOJIS[animalName]}**!`, ephemeral: true });
   }
 }
 
-async function rollDice(channel, channelId) {
+async function triggerOpen(channelId, client) {
   const game = activeGames.get(channelId);
-  game.state = 'ROLLING';
+  if (!game || game.state !== 'BETTING') return;
+  game.state = 'ROLLING'; // Ngăn chặn sự kiện mới
 
-  if (game.startMessage) {
-    await game.startMessage.edit({ components: [] }).catch(() => { });
-  }
+  try {
+    const channel = await client.channels.fetch(channelId);
 
-  if (game.bets.length === 0) {
-    channel.send('Không có người chơi đặt cược. Hủy bỏ ván Bầu Cua!');
-    activeGames.delete(channelId);
-    return;
-  }
+    if (game.startMessage) {
+      // Khóa sòng: xóa các nút bấm
+      await game.startMessage.edit({ components: [] }).catch(() => {});
+    }
 
-  const rollingEmbed = new EmbedBuilder()
-    .setTitle('🎲 NHÀ CÁI ĐANG XÓC ĐĨA...')
-    .setColor('#e67e22')
-    .setDescription('**[ ❓ | ❓ | ❓ ]**');
+    const rollingEmbed = new EmbedBuilder()
+      .setTitle('🎲 ĐANG MỞ BÁT...')
+      .setColor('#e67e22')
+      .setDescription('**[ ❓ | ❓ | ❓ ]**');
 
-  const rollingMsg = await channel.send({ embeds: [rollingEmbed] });
+    const rollingMsg = await channel.send({ embeds: [rollingEmbed] });
 
-  const sleep = (ms) => new Promise(res => setTimeout(res, ms));
-  const frames = [
-    '**[ 🧊 | 🧊 | 🧊 ]**\n*Lắc lắc lắc...*',
-    '**[ 🎲 | 🧊 | 🎲 ]**\n*Xóc xóc xóc...*',
-    '**[ ❓ | 🎲 | ❓ ]**\n*Đang mở bát...*'
-  ];
+    const sleep = (ms) => new Promise(res => setTimeout(res, ms));
+    const frames = [
+      '**[ 🧊 | 🧊 | 🧊 ]**\n*Lắc lắc lắc...*',
+      '**[ 🎲 | 🧊 | 🎲 ]**\n*Xóc xóc xóc...*',
+      '**[ ❓ | 🎲 | ❓ ]**\n*Đang mở bát...*'
+    ];
 
-  for (let i = 0; i < frames.length; i++) {
+    for (let i = 0; i < frames.length; i++) {
+      await sleep(2000);
+      rollingEmbed.setDescription(frames[i]);
+      await rollingMsg.edit({ embeds: [rollingEmbed] }).catch(() => { });
+    }
+
     await sleep(2000);
-    rollingEmbed.setDescription(frames[i]);
-    await rollingMsg.edit({ embeds: [rollingEmbed] }).catch(() => { });
-  }
 
-  await sleep(2000);
+    const results = [
+      ANIMALS[Math.floor(Math.random() * ANIMALS.length)],
+      ANIMALS[Math.floor(Math.random() * ANIMALS.length)],
+      ANIMALS[Math.floor(Math.random() * ANIMALS.length)]
+    ];
 
-  const results = [
-    ANIMALS[Math.floor(Math.random() * ANIMALS.length)],
-    ANIMALS[Math.floor(Math.random() * ANIMALS.length)],
-    ANIMALS[Math.floor(Math.random() * ANIMALS.length)]
-  ];
-
-  const resultCounts = {};
-  for (const res of results) {
-    resultCounts[res] = (resultCounts[res] || 0) + 1;
-  }
-
-  let totalWinStr = '';
-  const userWinning = {};
-
-  for (const bet of game.bets) {
-    if (resultCounts[bet.animal] > 0) {
-      const multiply = resultCounts[bet.animal];
-      const winAmt = bet.amount + (bet.amount * multiply);
-      if (!userWinning[bet.userId]) userWinning[bet.userId] = { username: bet.username, amount: 0 };
-      userWinning[bet.userId].amount += winAmt;
+    const resultCounts = {};
+    for (const res of results) {
+      resultCounts[res] = (resultCounts[res] || 0) + 1;
     }
-  }
 
-  for (const [userId, data] of Object.entries(userWinning)) {
-    let finalWin = data.amount;
-    const hasX2 = await consumeItem(userId, 'x2_reward');
-    if (hasX2) finalWin *= 2;
+    let hostProfit = 0;
+    const userSummary = {};
 
-    await updateBalance(userId, data.username, finalWin);
-    totalWinStr += `🎉 <@${userId}> thắng **${finalWin.toLocaleString()}** coins! ${hasX2 ? ' (Vé x2 💰)' : ''}\n`;
-  }
-
-  const allBettors = [...new Set(game.bets.map(b => b.userId))];
-  const losers = allBettors.filter(id => !userWinning[id]);
-
-  let rescuedStr = '';
-  for (const loserId of losers) {
-    const hasShield = await consumeItem(loserId, 'bua_mien_tu');
-    if (hasShield) {
-      const totalLost = game.bets.filter(b => b.userId === loserId).reduce((sum, b) => sum + b.amount, 0);
-      const loserName = game.bets.find(b => b.userId === loserId).username;
-
-      await updateBalance(loserId, loserName, totalLost);
-      rescuedStr += `🛡️ <@${loserId}> được Bùa cứu mạng, hoàn trả **${totalLost.toLocaleString()} coins**!\n`;
+    // 1st pass: Account for wins and losses
+    for (const bet of game.bets) {
+      if (!userSummary[bet.userId]) {
+         userSummary[bet.userId] = { username: bet.username, totalWinReturn: 0, totalLostBet: 0, totalBet: 0 };
+      }
+      userSummary[bet.userId].totalBet += bet.amount;
+      
+      const count = resultCounts[bet.animal] || 0;
+      if (count > 0) {
+        // Return = Gốc + Lời
+        const winAmt = bet.amount + (bet.amount * count); 
+        userSummary[bet.userId].totalWinReturn += winAmt;
+        
+        // Nhà cái phải bù phần tiền lời, không bù tiền gốc (vì gốc nhà cái chưa lấy)
+        hostProfit -= (bet.amount * count); 
+      } else {
+        userSummary[bet.userId].totalLostBet += bet.amount;
+        hostProfit += bet.amount; // Nhà cái lấy tiền cược thua
+      }
     }
+
+    // 2nd pass: Apply items (x2 & Shield) and transfer money
+    for (const [userId, p] of Object.entries(userSummary)) {
+      if (p.totalWinReturn > 0) {
+        const hasX2 = await consumeItem(userId, 'x2_reward');
+        let finalReturn = p.totalWinReturn;
+        if (hasX2) {
+            finalReturn *= 2;
+            const extra = finalReturn - p.totalWinReturn; 
+            hostProfit -= extra; // Nhà cái phải ói thêm tiền túi để trả x2
+            p.x2 = true;
+        }
+        await updateBalance(userId, p.username, finalReturn);
+      }
+      
+      // Bùa cứu mạng chỉ kích hoạt nếu hoàn toàn trắng tay trong ván
+      if (p.totalWinReturn === 0 && p.totalLostBet > 0) {
+        const hasShield = await consumeItem(userId, 'bua_mien_tu');
+        if (hasShield) {
+            hostProfit -= p.totalLostBet; // Nhà cái không được ăn phần này
+            await updateBalance(userId, p.username, p.totalLostBet);
+            p.rescued = p.totalLostBet;
+        }
+      }
+    }
+
+    // Cập nhật lợi nhuận/lỗ cho Chủ Sòng (có thể làm balance âm)
+    await updateBalance(game.hostId, game.hostName, hostProfit);
+
+    // Chuẩn bị Text Bảng Xếp Hạng
+    let summaryText = '';
+    const allBettors = Object.values(userSummary);
+    if (allBettors.length === 0) {
+      summaryText = '*Sòng ế quá, không người chơi nào tham gia...*';
+    } else {
+      for (const p of allBettors) {
+        let text = `👤 **${p.username}**: `;
+        
+        // Tiền nhận về
+        let finalReturn = p.totalWinReturn;
+        if (p.x2) finalReturn *= 2;
+        if (p.rescued) finalReturn += p.rescued; 
+
+        // Net = Nhận về - (Tổng các khoản đã cược)
+        const net = finalReturn - p.totalBet;
+
+        if (net > 0) {
+          text += `📈 Lời +${net.toLocaleString()} xu`;
+        } else if (net < 0) {
+          text += `📉 Lỗ ${net.toLocaleString()} xu`;
+        } else {
+          text += `➖ Hòa vốn`;
+        }
+        if (p.x2) text += ` (💰 Vé x2)`;
+        if (p.rescued) text += ` (🛡️ Bùa cứu: hoàn ${p.rescued.toLocaleString()})`;
+        summaryText += `${text}\n`;
+      }
+    }
+
+    const hostBalanceNow = await getBalance(game.hostId, game.hostName);
+    const hostStatus = hostProfit > 0 ? `📈 Lời +${hostProfit.toLocaleString()} xu` : (hostProfit < 0 ? `📉 Lỗ ${hostProfit.toLocaleString()} xu` : `➖ 0 xu`);
+    
+    let hostDebtWarning = '';
+    if (hostBalanceNow < 0) {
+      hostDebtWarning = `\n⚠️ **CHÚ Ý:** Chủ sòng đã vỡ nợ, số dư âm: **${hostBalanceNow.toLocaleString()} xu**. Hãy đi làm nhiệm vụ trả nợ!`;
+    }
+
+    const diceStr = `**[ ${EMOJIS[results[0]]} ] | [ ${EMOJIS[results[1]]} ] | [ ${EMOJIS[results[2]]} ]**`;
+
+    const resultEmbed = new EmbedBuilder()
+      .setTitle('🎲 KẾT QUẢ SÒNG BẦU CUA')
+      .setColor(hostProfit >= 0 ? '#57F287' : '#ED4245')
+      .setDescription(`Kết quả xổ:\n${diceStr}\n\n**THỐNG KÊ THIỆT HẠI:**\n${summaryText}\n---\n🎩 **Chủ sòng (<@${game.hostId}>):** ${hostStatus}${hostDebtWarning}`);
+
+    await channel.send({ embeds: [resultEmbed] });
+    await rollingMsg.delete().catch(() => { });
+
+  } catch (err) {
+    console.error('Lỗi khi mở bát Bầu Cua:', err);
+  } finally {
+    activeGames.delete(channelId);
   }
-
-  if (totalWinStr === '') totalWinStr = 'Không có ai đoán trúng hợp lệ.\n';
-  if (rescuedStr !== '') totalWinStr += `\n**BẢO HỘ TỬ THẦN:**\n${rescuedStr}`;
-
-  const diceStr = `**[ ${ICONS[results[0]]} ] | [ ${ICONS[results[1]]} ] | [ ${ICONS[results[2]]} ]**`;
-
-  const resultEmbed = new EmbedBuilder()
-    .setTitle('Kết Quả Bầu Cua')
-    .setColor('#57F287')
-    .setDescription(`Cắm bát:\n${diceStr}\n\n**Kết quả trả thưởng:**\n${totalWinStr}`);
-
-  await channel.send({ embeds: [resultEmbed] });
-  await rollingMsg.delete().catch(() => { });
-
-  activeGames.delete(channelId);
 }
+

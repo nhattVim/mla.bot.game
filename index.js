@@ -136,7 +136,7 @@ client.on('interactionCreate', async (interaction) => {
       return handleHorseRacingInteraction(interaction)
     }
 
-    if (interaction.customId?.startsWith('bet_bc_') || interaction.customId?.startsWith('modal_bc_')) {
+    if (interaction.customId?.startsWith('bet_bc_') || interaction.customId?.startsWith('modal_bc_') || interaction.customId?.startsWith('bc_host_')) {
       return handleBauCuaInteraction(interaction)
     }
 

@@ -29,21 +29,22 @@ function buildBoardEmbed(game, hostId, hostName, endTime) {
   description += `**--- SÀN GIAO DỊCH ---**\n`;
 
   const stats = {
-    bau: { count: 0, total: 0 },
-    cua: { count: 0, total: 0 },
-    tom: { count: 0, total: 0 },
-    ca: { count: 0, total: 0 },
-    ga: { count: 0, total: 0 },
-    nai: { count: 0, total: 0 }
+    bau: { total: 0, users: new Set() },
+    cua: { total: 0, users: new Set() },
+    tom: { total: 0, users: new Set() },
+    ca: { total: 0, users: new Set() },
+    ga: { total: 0, users: new Set() },
+    nai: { total: 0, users: new Set() }
   };
 
   game.bets.forEach(b => {
-    stats[b.animal].count += 1;
     stats[b.animal].total += b.amount;
+    stats[b.animal].users.add(b.username);
   });
 
   ANIMALS.forEach(a => {
-    description += `**${EMOJIS[a]}**: ${stats[a].total.toLocaleString()} xu (${stats[a].count} người)\n`;
+    const userList = stats[a].users.size > 0 ? ` (${Array.from(stats[a].users).join(', ')})` : ' (0 người)';
+    description += `**${EMOJIS[a]}**: ${stats[a].total.toLocaleString()} xu${userList}\n`;
   });
 
   return new EmbedBuilder()

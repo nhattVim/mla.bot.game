@@ -40,7 +40,8 @@ export async function handleWordChainCommand(message, args) {
       channelId: channelId,
       currentLetter: currentLetter,
       usedWords: new Set([startWord]),
-      scores: {} // { userId: { 'a': 1, 'b': 2 } }
+      scores: {}, // { userId: { 'a': 1, 'b': 2 } }
+      lastUserId: null
     };
 
     activeWordChains.set(channelId, game);
@@ -62,7 +63,7 @@ export async function handleWordChainMessage(message) {
   if (message.author.bot) return;
 
   const content = message.content.trim().toLowerCase();
-  
+
   // Game nối chữ tiếng anh chỉ nên duyệt các từ đơn
   if (content.includes(' ')) return;
   // Bỏ qua các tin nhắn có dấu phẩy, các lệnh gọi bot
@@ -78,24 +79,30 @@ export async function handleWordChainMessage(message) {
 
   // Lọc từ dùng rồi
   if (game.usedWords.has(content)) {
-    return message.react('🔁').catch(() => {});
+    return message.react('🔁').catch(() => { });
+  }
+
+  // Chặn 1 user tự spam liên tục
+  if (game.lastUserId === message.author.id) {
+    return message.react('⏳').catch(() => { });
   }
 
   // Check từ hợp lệ trong từ điển
   if (!wordsSet.has(content)) {
-    return message.react('❌').catch(() => {});
+    return message.react('❌').catch(() => { });
   }
 
   // Khúc này từ hoàn toàn hợp lệ
   game.usedWords.add(content);
-  
+  game.lastUserId = message.author.id;
+
   // Gắn điểm tích lũy theo kí tự khởi đầu
   const startChar = content[0];
   const userId = message.author.id;
 
   if (!game.scores[userId]) game.scores[userId] = {};
   if (!game.scores[userId][startChar]) game.scores[userId][startChar] = 0;
-  
+
   game.scores[userId][startChar] += 1;
   const currentCount = game.scores[userId][startChar];
 
@@ -105,13 +112,13 @@ export async function handleWordChainMessage(message) {
   // Cập nhật chữ yêu cầu tiếp theo
   game.currentLetter = content[content.length - 1];
 
-  await message.react('✅').catch(() => {});
+  await message.react('✅').catch(() => { });
 
   // Nếu bằng hoặc qua 10 là thắng!
   if (currentCount >= 10) {
     // Thả emoji ăn mừng vô câu của người thắng rồi báo game
-    await message.react('🔟').catch(() => {});
-    await message.react('🎉').catch(() => {});
+    await message.react('🔟').catch(() => { });
+    await message.react('🎉').catch(() => { });
 
     // Chỉ thưởng thêm 9900 coins ở đây vì họ vừa được nhận +100 ở trên rồi (tổng 10000)
     await updateBalance(userId, message.author.username, 9900);
@@ -131,6 +138,6 @@ export async function handleWordChainMessage(message) {
 
   // Chỉ thả số vào khi họ chưa cán mốc win
   if (currentCount > 0 && currentCount < 10) {
-    await message.react(EMOJI_NUMBERS[currentCount]).catch(() => {});
+    await message.react(EMOJI_NUMBERS[currentCount]).catch(() => { });
   }
 }

@@ -9,6 +9,7 @@ import { handleShop, handleShopInteraction, SHOP_ITEMS } from './games/shop.js'
 import { handleGive, handleAnXin, handleAnXinInteraction } from './games/economy.js'
 import { handleBlackjack, handleBlackjackInteraction } from './games/blackjack.js'
 import { handleWordChainCommand, handleWordChainMessage } from './games/wordchain.js'
+import { handleWordChainVnCommand, handleWordChainVnMessage } from './games/wordchain_vn.js'
 import { getUserInventory } from './utils/db.js'
 
 dotenv.config()
@@ -32,6 +33,7 @@ client.on('messageCreate', async (message) => {
 
   // Bắt tin nhắn để kiểm tra nếu kênh đang chơi Word Chain
   handleWordChainMessage(message)
+  handleWordChainVnMessage(message)
 
   if (!message.content.startsWith(PREFIX)) return
 
@@ -98,6 +100,10 @@ client.on('messageCreate', async (message) => {
       return handleWordChainCommand(message, args)
     }
 
+    if (command === 'noituvn' || command === 'wcvn') {
+      return handleWordChainVnCommand(message, args)
+    }
+
     if (command === 'give') {
       return handleGive(message, args)
     }
@@ -117,6 +123,7 @@ client.on('messageCreate', async (message) => {
           { name: 'Bầu Cua', value: '`!bc`\nTham gia lắc bầu cua.\n', inline: false },
           { name: 'Oẳn Tù Tì', value: '`!ott @Người_chơi <Số_tiền>`\nThách đấu người chơi khác.\n', inline: false },
           { name: 'Nối Từ Tiếng Anh', value: '`!noitu start` hoặc `!wc start`\nMở phòng nối tiếng Anh.\n', inline: false },
+          { name: 'Nối Từ Tiếng Việt', value: '`!noituvn start` hoặc `!wcvn start`\nMở phòng nối tiếng Việt.\n', inline: false },
           { name: 'Blackjack', value: '`!bj <Số_tiền>` hoặc `!xidach <Số_tiền>`\nChơi Blackjack với Dealer.\n', inline: false },
           { name: 'Cửa Hàng', value: '`!shop` hoặc `!s`\nMua danh hiệu và vật phẩm.', inline: false },
           { name: 'Kinh Tế', value: '`!give @Người_chơi <Số_tiền>`: Chuyển tiền cho người khác.\n`!anxin @Người_chơi <Số_tiền>`: Yêu cầu người khác cho tiền.', inline: false }

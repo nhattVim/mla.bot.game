@@ -199,7 +199,7 @@ export async function handleBlackjackInteraction(interaction) {
       const embed = new EmbedBuilder()
         .setTitle('Xì Dách')
         .setColor('#ED4245')
-        .setDescription(`**Dealer:** ${formatHand(dealerHand)} (Tổng: ${dValue})\n**Player:** ${formatHand(playerHand)} (Tổng: ${pValue})\n\n💥 QUẮC (Bust)! Bạn đã vượt qua mốc 21 tuổi và bay mất xác!\n**Thua: -${amount.toLocaleString()} coins**`);
+        .setDescription(`**Dealer:** ${formatHand(dealerHand)} (Tổng: ${dValue})\n**Player:** ${formatHand(playerHand)} (Tổng: ${pValue})\n\n💥 QUẮC (Bust)! Bạn đã quá 21!\n**Thua: -${amount.toLocaleString()} coins**`);
 
       return interaction.update({ embeds: [embed], components: [] });
     }

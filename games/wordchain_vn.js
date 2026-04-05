@@ -120,7 +120,10 @@ export async function handleWordChainVnMessage(message) {
 
   // Kiểm tra xem đã dùng từ này chưa
   if (game.history.usedWords.has(content)) {
-    return message.react('🔁').catch(() => { });
+    const passed = game.history.gameCount;
+    const remain = 10 - passed;
+    const pastText = passed === 0 ? "ván hiện tại" : `${passed} game gần đây`;
+    return message.reply(`từ này đã được dùng trong ${pastText}, bạn có thể dùng lại sau ${remain} game nữa`);
   }
 
   // Chống người chơi tự nối liên tục

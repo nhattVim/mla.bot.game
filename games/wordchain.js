@@ -46,7 +46,7 @@ export async function handleWordChainCommand(message, args) {
     }
 
     history.usedWords.add(startWord);
-    saveWordChainHistory(channelId, Array.from(history.usedWords), history.gameCount).catch(() => {});
+    saveWordChainHistory(channelId, Array.from(history.usedWords), history.gameCount).catch(() => { });
 
     const currentLetter = startWord[startWord.length - 1];
 
@@ -93,7 +93,10 @@ export async function handleWordChainMessage(message) {
 
   // Lọc từ dùng rồi
   if (game.history.usedWords.has(content)) {
-    return message.react('🔁').catch(() => { });
+    const passed = game.history.gameCount;
+    const remain = 10 - passed;
+    const pastText = passed === 0 ? "ván này" : `${passed} game gần đây`;
+    return message.reply(`Từ này đã được dùng trong ${pastText}, bạn có thể dùng lại sau ${remain} game nữa`);
   }
 
   // Chặn 1 user tự spam liên tục
@@ -109,8 +112,8 @@ export async function handleWordChainMessage(message) {
   // Khúc này từ hoàn toàn hợp lệ
   game.history.usedWords.add(content);
   game.lastUserId = message.author.id;
-  saveWordChainHistory(channelId, Array.from(game.history.usedWords), game.history.gameCount).catch(() => {});
-  
+  saveWordChainHistory(channelId, Array.from(game.history.usedWords), game.history.gameCount).catch(() => { });
+
   // Gắn điểm tích lũy theo kí tự khởi đầu
   const startChar = content[0];
   const userId = message.author.id;
@@ -140,15 +143,15 @@ export async function handleWordChainMessage(message) {
 
     game.history.gameCount += 1;
     let resetMsg = '';
-    
+
     if (game.history.gameCount >= 10) {
-        game.history.usedWords.clear();
-        game.history.gameCount = 0;
-        clearWordChainHistory(channelId).catch(() => {});
-        resetMsg = `\n\n🔄 **Đã đạt giới hạn 10 ván. Bộ nhớ các từ đã dùng vừa được xóa sạch!**`;
+      game.history.usedWords.clear();
+      game.history.gameCount = 0;
+      clearWordChainHistory(channelId).catch(() => { });
+      resetMsg = `\n\n🔄 **Đã đạt giới hạn 10 ván. Bộ nhớ các từ đã dùng vừa được xóa sạch!**`;
     } else {
-        saveWordChainHistory(channelId, Array.from(game.history.usedWords), game.history.gameCount).catch(() => {});
-        resetMsg = `\n*(Lưu ý: Các từ đã dùng ở ván này sẽ tiếp tục bị cấm ở ván sau!)*`;
+      saveWordChainHistory(channelId, Array.from(game.history.usedWords), game.history.gameCount).catch(() => { });
+      resetMsg = `\n*(Lưu ý: Các từ đã dùng ở ván này sẽ tiếp tục bị cấm ở ván sau!)*`;
     }
 
     const winEmbed = new EmbedBuilder()

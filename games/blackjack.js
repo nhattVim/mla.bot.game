@@ -116,8 +116,14 @@ export async function handleBlackjack(message, args) {
       resultDisplay = `Thắng: +${(amount * pSpecial.mult).toLocaleString()} coins${pSpecial.mult > 1 ? ` (Lãi x${pSpecial.mult})` : ''}`;
     } else {
       const typeName = dSpecial.type === 'XIBAN' ? 'Xì Vàng' : 'Xì Dách';
-      resultText = `💥 Dealer có **${typeName}**! Xui ghê, thua cược!`;
-      resultDisplay = `Thua: -${amount.toLocaleString()} coins`;
+      const dMult = dSpecial.mult;
+      resultText = `💥 Dealer có **${typeName}**! Bạn thua đứt ruột!`;
+
+      const extraDeduct = amount * (dMult - 1);
+      if (extraDeduct > 0) {
+        await updateBalance(userId, username, -extraDeduct);
+      }
+      resultDisplay = `Thua đau: -${(amount * dMult).toLocaleString()} coins (Đền x${dMult})`;
     }
 
     const embed = new EmbedBuilder()
@@ -253,6 +259,7 @@ export async function handleBlackjackInteraction(interaction) {
     let isWin = false;
     let isTie = false;
     let pWinMultiplier = 1;
+    let dWinMultiplier = 1;
 
     const isPlayerNguLinh = playerHand.length >= 5 && pValue <= 21;
     const isDealerNguLinh = dealerHand.length >= 5 && dValue <= 21;
@@ -264,6 +271,7 @@ export async function handleBlackjackInteraction(interaction) {
         pWinMultiplier = 3;
       } else if (pValue > dValue) {
         resultText = '💥 Cả hai đều Ngũ Linh, nhưng Dealer điểm nhỏ hơn! Bạn thua!';
+        dWinMultiplier = 3;
       } else {
         resultText = '🤝 Cả hai đều Ngũ Linh và bằng điểm! Hoà!';
         isTie = true;
@@ -273,7 +281,8 @@ export async function handleBlackjackInteraction(interaction) {
       isWin = true;
       pWinMultiplier = 3;
     } else if (isDealerNguLinh) {
-      resultText = '💥 Dealer có Ngũ Linh! Bạn thua!';
+      resultText = '💥 Dealer có Ngũ Linh! Bạn thua đậm!';
+      dWinMultiplier = 3;
     } else if (dValue > 21) {
       resultText = '💥 Dealer Quắc! Bạn thắng!';
       isWin = true;
@@ -294,7 +303,11 @@ export async function handleBlackjackInteraction(interaction) {
       await updateBalance(userId, username, amount);
       resultDisplay = `Hoà nhận lại: +${amount.toLocaleString()} coins`;
     } else {
-      resultDisplay = `Thua: -${amount.toLocaleString()} coins`;
+      const extraDeduct = amount * (dWinMultiplier - 1);
+      if (extraDeduct > 0) {
+        await updateBalance(userId, username, -extraDeduct);
+      }
+      resultDisplay = `Thua: -${(amount * dWinMultiplier).toLocaleString()} coins${dWinMultiplier > 1 ? ` (Đền x${dWinMultiplier})` : ''}`;
     }
 
     embed = new EmbedBuilder()

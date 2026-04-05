@@ -8,6 +8,7 @@ import { handleOanTuTi, handleOanTuTiInteraction } from './games/oantuti.js'
 import { handleShop, handleShopInteraction, SHOP_ITEMS } from './games/shop.js'
 import { handleGive, handleAnXin, handleAnXinInteraction } from './games/economy.js'
 import { handleBlackjack, handleBlackjackInteraction } from './games/blackjack.js'
+import { handleBlackjackMultiplayer, handleBlackMultiplayerInteraction } from './games/blackjack_multi.js'
 import { handleWordChainCommand, handleWordChainMessage } from './games/wordchain.js'
 import { handleWordChainVnCommand, handleWordChainVnMessage } from './games/wordchain_vn.js'
 import { getUserInventory } from './utils/db.js'
@@ -89,6 +90,9 @@ client.on('messageCreate', async (message) => {
     }
 
     if (command === 'xd') {
+      if (args.length >= 2 && args[1].toLowerCase() === 'host') {
+        return handleBlackjackMultiplayer(message, args)
+      }
       return handleBlackjack(message, args)
     }
 
@@ -153,6 +157,10 @@ client.on('interactionCreate', async (interaction) => {
 
     if (interaction.customId?.startsWith('bj_')) {
       return handleBlackjackInteraction(interaction)
+    }
+
+    if (interaction.customId?.startsWith('bjm_')) {
+      return handleBlackMultiplayerInteraction(interaction)
     }
 
     if (interaction.customId?.startsWith('shopbuy_')) {

@@ -1,5 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
-import { updateBalance, getWordChainHistory, saveWordChainHistory, clearWordChainHistory } from '../utils/db.js';
+import { updateBalance, getWordChainHistory, saveWordChainHistory, clearWordChainHistory, saveWordChainState } from '../utils/db.js';
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
@@ -18,6 +18,26 @@ for (const word of wordsList) {
 export const activeWordChainsVn = new Map();
 export const channelWordHistoryVn = new Map();
 
+export async function restoreActiveGamesVn(dbDataList) {
+  for (const data of dbDataList) {
+    if (!data.channelId.startsWith('vn_')) continue;
+    
+    const realChannelId = data.channelId.replace('vn_', '');
+    channelWordHistoryVn.set(realChannelId, {
+       usedWords: new Set(data.usedWords || []),
+       gameCount: data.gameCount || 0
+    });
+
+    const game = {
+       channelId: realChannelId,
+       currentSyllable: data.currentLetter,
+       history: channelWordHistoryVn.get(realChannelId),
+       lastUserId: data.lastUserId
+    };
+    activeWordChainsVn.set(realChannelId, game);
+  }
+}
+
 export async function handleWordChainVnCommand(message, args) {
   const channelId = message.channel.id;
   const dbChannelId = 'vn_' + channelId;
@@ -26,6 +46,7 @@ export async function handleWordChainVnCommand(message, args) {
   if (action === 'stop') {
     if (activeWordChainsVn.has(channelId)) {
       activeWordChainsVn.delete(channelId);
+      saveWordChainState(dbChannelId, { isActive: false }).catch(() => {});
       return message.reply('Đã kết thúc trò chơi Nối Từ Tiếng Việt ở phòng này. (Lịch sử vẫn được giữ nguyên trong DB)');
     } else {
       return message.reply('Hiện không có ván Nối Từ Tiếng Việt nào đang hoạt động ở đây.');
@@ -67,7 +88,6 @@ export async function handleWordChainVnCommand(message, args) {
     }
 
     history.usedWords.add(startWord);
-    saveWordChainHistory(dbChannelId, Array.from(history.usedWords), history.gameCount).catch(() => {});
 
     const syllables = startWord.split(' ');
     const nextSyllable = syllables[1];
@@ -80,6 +100,14 @@ export async function handleWordChainVnCommand(message, args) {
     };
 
     activeWordChainsVn.set(channelId, game);
+
+    saveWordChainState(dbChannelId, {
+      usedWords: Array.from(history.usedWords),
+      gameCount: history.gameCount,
+      isActive: true,
+      currentLetter: nextSyllable,
+      lastUserId: null
+    }).catch(() => {});
 
     const embed = new EmbedBuilder()
       .setTitle('Trò Chơi Nối Từ Tiếng Việt Bắt Đầu!')
@@ -139,7 +167,6 @@ export async function handleWordChainVnMessage(message) {
   // == TỪ CỦA NGƯỜI CHƠI HỢP LỆ ==
   game.history.usedWords.add(content);
   game.lastUserId = message.author.id;
-  saveWordChainHistory(dbChannelId, Array.from(game.history.usedWords), game.history.gameCount).catch(() => {});
 
   const userId = message.author.id;
 
@@ -149,6 +176,14 @@ export async function handleWordChainVnMessage(message) {
   // Cập nhật âm tiết tiếp theo
   const nextSyllable = syllables[1];
   game.currentSyllable = nextSyllable;
+  
+  saveWordChainState(dbChannelId, {
+    usedWords: Array.from(game.history.usedWords),
+    gameCount: game.history.gameCount,
+    isActive: true,
+    currentLetter: game.currentSyllable,
+    lastUserId: game.lastUserId
+  }).catch(() => {});
   
   // KIỂM TRA BÍ TỪ (WIN CONDITION)
   const validWordsWithNextSyllable = syllableMap.get(nextSyllable) || [];
@@ -171,7 +206,11 @@ export async function handleWordChainVnMessage(message) {
         clearWordChainHistory(dbChannelId).catch(() => {});
         resetMsg = `\n\n🔄 **Đã đạt giới hạn 10 ván. Bộ nhớ các từ đã dùng vừa được xóa sạch!**`;
     } else {
-        saveWordChainHistory(dbChannelId, Array.from(game.history.usedWords), game.history.gameCount).catch(() => {});
+        saveWordChainState(dbChannelId, {
+           usedWords: Array.from(game.history.usedWords),
+           gameCount: game.history.gameCount,
+           isActive: false
+        }).catch(() => {});
         resetMsg = `\n*(Lưu ý: Các từ đã dùng ở ván này sẽ tiếp tục bị cấm ở ván sau!)*`;
     }
 

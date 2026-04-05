@@ -1,7 +1,7 @@
 import http from 'http'
 import { Client, GatewayIntentBits, Partials, EmbedBuilder } from 'discord.js'
 import dotenv from 'dotenv'
-import { connectDB, getBalance, claimDaily } from './utils/db.js'
+import { connectDB, getBalance, claimDaily, getAllActiveWordChains } from './utils/db.js'
 import { handleHorseRacing, handleHorseRacingInteraction } from './games/horse_racing.js'
 import { handleBauCua, handleBauCuaInteraction } from './games/baucua.js'
 import { handleOanTuTi, handleOanTuTiInteraction } from './games/oantuti.js'
@@ -9,8 +9,8 @@ import { handleShop, handleShopInteraction, SHOP_ITEMS } from './games/shop.js'
 import { handleGive, handleAnXin, handleAnXinInteraction } from './games/economy.js'
 import { handleBlackjack, handleBlackjackInteraction } from './games/blackjack.js'
 import { handleBlackjackMultiplayer, handleBlackMultiplayerInteraction } from './games/blackjack_multi.js'
-import { handleWordChainCommand, handleWordChainMessage } from './games/wordchain.js'
-import { handleWordChainVnCommand, handleWordChainVnMessage } from './games/wordchain_vn.js'
+import { handleWordChainCommand, handleWordChainMessage, restoreActiveGames } from './games/wordchain.js'
+import { handleWordChainVnCommand, handleWordChainVnMessage, restoreActiveGamesVn } from './games/wordchain_vn.js'
 import { getUserInventory } from './utils/db.js'
 
 dotenv.config()
@@ -26,6 +26,10 @@ client.once('ready', async () => {
   console.log(`Bot is ready! Logged in as ${client.user.tag}`)
   // Connect to MongoDB
   await connectDB()
+  const activeGamesList = await getAllActiveWordChains()
+  await restoreActiveGames(activeGamesList)
+  await restoreActiveGamesVn(activeGamesList)
+  console.log(`[Khôi phục] Đã nạp lại ${activeGamesList.length} phòng Nối Từ đang hoạt động.`)
 })
 
 // Handle chat commands (Prefix commands)

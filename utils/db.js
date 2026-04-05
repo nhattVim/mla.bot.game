@@ -38,7 +38,7 @@ const wordChainSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: false },
   currentLetter: { type: String, default: null },
   lastUserId: { type: String, default: null },
-  scores: { type: Object, default: {} }
+  scores: { type: mongoose.Schema.Types.Mixed, default: {} }
 })
 
 const WordChain = mongoose.model('WordChain', wordChainSchema)
@@ -238,26 +238,40 @@ export async function getWordChainHistory(channelId) {
   }
 }
 
+export async function saveWordChainHistory(channelId, usedWords, gameCount) {
+  if (!isConnected) return false
+  try {
+    await WordChain.findOneAndUpdate(
+      { channelId },
+      { usedWords, gameCount },
+      { upsert: true }
+    )
+    return true
+  } catch (error) {
+    return false
+  }
+}
+
+export async function saveWordChainState(channelId, stateInfo) {
+  if (!isConnected) return false
+  try {
+    await WordChain.findOneAndUpdate(
+      { channelId },
+      { $set: stateInfo },
+      { upsert: true }
+    )
+    return true
+  } catch (error) {
+    return false
+  }
+}
+
 export async function getAllActiveWordChains() {
   if (!isConnected) return []
   try {
     return await WordChain.find({ isActive: true })
   } catch (error) {
     return []
-  }
-}
-
-export async function saveWordChainState(channelId, stateData) {
-  if (!isConnected) return false
-  try {
-    await WordChain.findOneAndUpdate(
-      { channelId },
-      { ...stateData },
-      { upsert: true }
-    )
-    return true
-  } catch (error) {
-    return false
   }
 }
 

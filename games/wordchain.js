@@ -1,5 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
-import { updateBalance, getWordChainHistory, saveWordChainHistory, clearWordChainHistory } from '../utils/db.js';
+import { updateBalance, getWordChainHistory, saveWordChainHistory, clearWordChainHistory, saveWordChainState } from '../utils/db.js';
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
@@ -8,6 +8,26 @@ const wordsSet = new Set(wordsList);
 
 export const activeWordChains = new Map();
 export const channelWordHistory = new Map();
+
+export async function restoreActiveGames(dbDataList) {
+  for (const data of dbDataList) {
+    if (data.channelId.startsWith('vn_')) continue;
+    
+    channelWordHistory.set(data.channelId, {
+       usedWords: new Set(data.usedWords || []),
+       gameCount: data.gameCount || 0
+    });
+
+    const game = {
+       channelId: data.channelId,
+       currentLetter: data.currentLetter,
+       history: channelWordHistory.get(data.channelId),
+       scores: data.scores || {},
+       lastUserId: data.lastUserId
+    };
+    activeWordChains.set(data.channelId, game);
+  }
+}
 
 const EMOJI_NUMBERS = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
 
@@ -18,6 +38,7 @@ export async function handleWordChainCommand(message, args) {
   if (action === 'stop') {
     if (activeWordChains.has(channelId)) {
       activeWordChains.delete(channelId);
+      saveWordChainState(channelId, { isActive: false }).catch(() => {});
       return message.reply('Đã kết thúc trò chơi Nối Từ ở phòng này. (Lịch sử các từ dùng vẫn được giữ nguyên trong DB)');
     } else {
       return message.reply('Hiện không có ván Nối Từ nào đang hoạt động ở đây.');
@@ -46,7 +67,6 @@ export async function handleWordChainCommand(message, args) {
     }
 
     history.usedWords.add(startWord);
-    saveWordChainHistory(channelId, Array.from(history.usedWords), history.gameCount).catch(() => { });
 
     const currentLetter = startWord[startWord.length - 1];
 
@@ -59,6 +79,15 @@ export async function handleWordChainCommand(message, args) {
     };
 
     activeWordChains.set(channelId, game);
+
+    saveWordChainState(channelId, {
+      usedWords: Array.from(history.usedWords),
+      gameCount: history.gameCount,
+      isActive: true,
+      currentLetter: currentLetter,
+      lastUserId: null,
+      scores: {}
+    }).catch(() => {});
 
     const embed = new EmbedBuilder()
       .setTitle('Game Nối Từ Bắt Đầu!')
@@ -112,7 +141,6 @@ export async function handleWordChainMessage(message) {
   // Khúc này từ hoàn toàn hợp lệ
   game.history.usedWords.add(content);
   game.lastUserId = message.author.id;
-  saveWordChainHistory(channelId, Array.from(game.history.usedWords), game.history.gameCount).catch(() => { });
 
   // Gắn điểm tích lũy theo kí tự khởi đầu
   const startChar = content[0];
@@ -150,7 +178,11 @@ export async function handleWordChainMessage(message) {
       clearWordChainHistory(channelId).catch(() => { });
       resetMsg = `\n\n🔄 **Đã đạt giới hạn 10 ván. Bộ nhớ các từ đã dùng vừa được xóa sạch!**`;
     } else {
-      saveWordChainHistory(channelId, Array.from(game.history.usedWords), game.history.gameCount).catch(() => { });
+      saveWordChainState(channelId, {
+         usedWords: Array.from(game.history.usedWords),
+         gameCount: game.history.gameCount,
+         isActive: false
+      }).catch(() => {});
       resetMsg = `\n*(Lưu ý: Các từ đã dùng ở ván này sẽ tiếp tục bị cấm ở ván sau!)*`;
     }
 
@@ -169,6 +201,14 @@ export async function handleWordChainMessage(message) {
 
   // Chỉ thả số vào khi họ chưa cán mốc win
   if (currentCount > 0 && currentCount < 10) {
+    saveWordChainState(channelId, {
+       usedWords: Array.from(game.history.usedWords),
+       gameCount: game.history.gameCount,
+       isActive: true,
+       currentLetter: game.currentLetter,
+       lastUserId: game.lastUserId,
+       scores: game.scores
+    }).catch(() => {});
     await message.react(EMOJI_NUMBERS[currentCount]).catch(() => { });
   }
 }

@@ -34,7 +34,11 @@ const User = mongoose.model('User', userSchema)
 const wordChainSchema = new mongoose.Schema({
   channelId: { type: String, required: true, unique: true },
   usedWords: { type: [String], default: [] },
-  gameCount: { type: Number, default: 0 }
+  gameCount: { type: Number, default: 0 },
+  isActive: { type: Boolean, default: false },
+  currentLetter: { type: String, default: null },
+  lastUserId: { type: String, default: null },
+  scores: { type: Object, default: {} }
 })
 
 const WordChain = mongoose.model('WordChain', wordChainSchema)
@@ -234,12 +238,21 @@ export async function getWordChainHistory(channelId) {
   }
 }
 
-export async function saveWordChainHistory(channelId, usedWords, gameCount) {
+export async function getAllActiveWordChains() {
+  if (!isConnected) return []
+  try {
+    return await WordChain.find({ isActive: true })
+  } catch (error) {
+    return []
+  }
+}
+
+export async function saveWordChainState(channelId, stateData) {
   if (!isConnected) return false
   try {
     await WordChain.findOneAndUpdate(
       { channelId },
-      { usedWords, gameCount },
+      { ...stateData },
       { upsert: true }
     )
     return true

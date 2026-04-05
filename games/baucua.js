@@ -22,9 +22,9 @@ const COLORS = {
 const MIN_HOST_BALANCE = 20000;
 const GAME_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
-function buildBoardEmbed(game, hostId, hostName, endTime) {
+function buildBoardEmbed(game, hostId, hostName, timeLeft) {
   let description = `**Chủ sòng:** <@${hostId}>\n`;
-  description += `**Trạng thái:** Đang nhận cược (Tự động mở bát lúc <t:${endTime}:t>)\n\n`;
+  description += `**Trạng thái:** Đang nhận cược (Tự động mở bát sau ${timeLeft}s)\n\n`;
   description += `*(Trúng 1 lần x1, 2 lần x2, 3 lần x3. Giải vô đền nợ, x2/miễn tử vẫn hoạt động!)*\n\n`;
   description += `**--- SÀN GIAO DỊCH ---**\n`;
 
@@ -70,8 +70,7 @@ export async function handleBauCua(message, args) {
     return message.reply(`Bạn cần ít nhất **${MIN_HOST_BALANCE.toLocaleString()} xu** để làm chủ sòng!`);
   }
 
-  const targetMs = Date.now() + GAME_TIMEOUT_MS;
-  const endTime = Math.floor(targetMs / 1000);
+  const timeLeftInit = GAME_TIMEOUT_MS / 1000;
 
   const game = {
     state: 'BETTING',
@@ -79,14 +78,13 @@ export async function handleBauCua(message, args) {
     hostName: message.author.username,
     bets: [],
     startMessage: null,
-    targetMs,
-    endTime,
+    timeLeft: timeLeftInit,
     updatePending: false
   };
 
   activeGames.set(channelId, game);
 
-  const embed = buildBoardEmbed(game, message.author.id, message.author.username, endTime);
+  const embed = buildBoardEmbed(game, message.author.id, message.author.username, game.timeLeft);
 
   const row1 = new ActionRowBuilder();
   const row2 = new ActionRowBuilder();
@@ -114,32 +112,24 @@ export async function handleBauCua(message, args) {
   const startMsg = await message.channel.send({ embeds: [embed], components: [row1, row2, row3] });
   game.startMessage = startMsg;
 
-  // Auto-update UI interval
-  const updateUiInterval = setInterval(() => {
-    const cg = activeGames.get(channelId);
-    if (!cg || cg.state !== 'BETTING') {
-      clearInterval(updateUiInterval);
-      return;
-    }
-    if (cg.updatePending) {
-      const newEmbed = buildBoardEmbed(cg, cg.hostId, cg.hostName, cg.endTime);
-      cg.startMessage.edit({ embeds: [newEmbed] }).catch(() => {});
-      cg.updatePending = false;
-    }
-  }, 2500);
-
-  // Auto-open interval
+  // Auto-update & countdown interval (5s)
   const timer = setInterval(() => {
     const cg = activeGames.get(channelId);
     if (!cg || cg.state !== 'BETTING') {
       clearInterval(timer);
       return;
     }
-    if (Date.now() >= cg.targetMs) {
+    
+    cg.timeLeft -= 5;
+    if (cg.timeLeft <= 0) {
       clearInterval(timer);
       triggerOpen(channelId, message.client);
+    } else {
+      const newEmbed = buildBoardEmbed(cg, cg.hostId, cg.hostName, cg.timeLeft);
+      cg.startMessage.edit({ embeds: [newEmbed] }).catch(() => {});
+      cg.updatePending = false; // Reset since we already updated the latest bets
     }
-  }, 1000);
+  }, 5000);
 }
 
 export async function handleBauCuaInteraction(interaction) {

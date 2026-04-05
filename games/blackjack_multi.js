@@ -87,7 +87,7 @@ export async function handleBlackjackMultiplayer(message, args) {
   const embed = new EmbedBuilder()
     .setTitle(`🎲 SÒNG BẠC XÌ DÁCH - Mức Cược: ${betAmount.toLocaleString()} xu`)
     .setColor('#FEE75C')
-    .setDescription(`**Nhà Cái:** <@${hostId}>\n\n**Các tay chơi chờ:**\n- Chưa có ai... (0/5)\n\n*(Sòng tối đa 6 người)*`);
+    .setDescription(`**Nhà Cái:** <@${hostId}>\n\n**Các tay chơi chờ:**\n- Chưa có ai... (0/5)\n\n*(Sòng tối đa 6 người - Giải tán sau 120s nếu không Phát Bài)*`);
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('bjm_join').setLabel('Thuê Lỗ Cắm').setStyle(ButtonStyle.Success).setEmoji('💸'),
@@ -107,22 +107,37 @@ export async function handleBlackjackMultiplayer(message, args) {
     deck: [],
     hostHand: [],
     hostValue: 0,
-    turnIndex: 0
+    turnIndex: 0,
+    timeLeft: 120
   });
 
-  setTimeout(() => {
+  const timer = setInterval(() => {
     if (activeMultiGames.has(sent.id) && activeMultiGames.get(sent.id).phase === 'LOBBY') {
       const g = activeMultiGames.get(sent.id);
-      activeMultiGames.delete(sent.id);
+      g.timeLeft -= 5;
       
-      // Hoàn tiền lobby tay con
-      g.players.forEach(async (p) => { await updateBalance(p.id, p.name, betAmount); });
-      
-      embed.setDescription(`⏳ Nhà cái <@${hostId}> ngâm quá lâu, sòng bị giải tán! Trả luân phí lại cho tay con.`);
-      embed.setColor('#ED4245');
-      sent.edit({ embeds: [embed], components: [] }).catch(()=>{});
+      if (g.timeLeft <= 0) {
+        clearInterval(timer);
+        activeMultiGames.delete(sent.id);
+        
+        // Hoàn tiền lobby tay con
+        g.players.forEach(async (p) => { await updateBalance(p.id, p.name, betAmount); });
+        
+        embed.setDescription(`⏳ Nhà cái <@${hostId}> ngâm quá lâu, sòng bị giải tán! Trả luân phí lại cho tay con.`);
+        embed.setColor('#ED4245');
+        sent.edit({ embeds: [embed], components: [] }).catch(()=>{});
+      } else {
+        const pList = g.players.map((p, i) => `${i+1}. <@${p.id}>`).join('\n');
+        const updatedEmbed = new EmbedBuilder()
+          .setTitle(`🎲 SÒNG BẠC XÌ DÁCH - Mức Cược: ${g.betAmount.toLocaleString()} xu`)
+          .setColor('#FEE75C')
+          .setDescription(`Nhà Cái Tay Chơi: <@${g.hostId}>\n\n**Các tay con đã lên mâm:**\n${pList || '- Chưa có ...'} (${g.players.length}/5)\n\n*(Sòng tối đa 6 người - Giải tán sau ${g.timeLeft}s nếu không Phát Bài)*`);
+        sent.edit({ embeds: [updatedEmbed] }).catch(()=>{});
+      }
+    } else {
+      clearInterval(timer);
     }
-  }, 120000);
+  }, 5000);
 }
 
 // ---------------------------
@@ -258,7 +273,7 @@ async function updateLobbyEmbed(interaction, game) {
   const embed = new EmbedBuilder()
     .setTitle(`🎲 SÒNG BẠC XÌ DÁCH - Mức Cược: ${game.betAmount.toLocaleString()} xu`)
     .setColor('#FEE75C')
-    .setDescription(`Nhà Cái Tay Chơi: <@${game.hostId}>\n\n**Các tay con đã lên mâm:**\n${pList || '- Chưa có ...'} (${game.players.length}/5)\n\n*(Sòng tối đa 6 người)*`);
+    .setDescription(`Nhà Cái Tay Chơi: <@${game.hostId}>\n\n**Các tay con đã lên mâm:**\n${pList || '- Chưa có ...'} (${game.players.length}/5)\n\n*(Sòng tối đa 6 người - Giải tán sau ${game.timeLeft}s nếu không Phát Bài)*`);
   await interaction.update({ embeds: [embed] });
 }
 

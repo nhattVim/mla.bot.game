@@ -44,7 +44,7 @@ export async function handleOanTuTi(message, args) {
     .setTitle('⚔️ THÁCH ĐẬU OẲN TÙ TÌ ⚔️')
     .setColor('#e74c3c')
     .setDescription(
-      `<@${message.author.id}> đã gửi lời thách đấu tới <@${targetUser.id}>!\n\n💰 **Tiền cược:** ${amount.toLocaleString()} coins.\n\nVui lòng chọn **Chấp nhận** hoặc **Từ chối** bên dưới.`
+      `<@${message.author.id}> đã gửi lời thách đấu tới <@${targetUser.id}>!\n\n💰 **Tiền cược:** ${amount.toLocaleString()} coins.\n\nVui lòng chọn **Chấp nhận** hoặc **Từ chối** bên dưới.\n*(Còn lại: 60 giây)*`
     )
 
   const row = new ActionRowBuilder().addComponents(
@@ -61,13 +61,26 @@ export async function handleOanTuTi(message, args) {
     target: { id: targetUser.id, name: targetUser.username, choice: null, ready: false },
     state: 'PENDING',
     message: startMsg,
-    timeout: setTimeout(async () => {
-      if (activeOttGames.has(gameId) && activeOttGames.get(gameId).state === 'PENDING') {
-        activeOttGames.delete(gameId)
-        await startMsg.edit({ components: [], content: `Đã hết thời gian phản hồi. Hủy thách đấu.` }).catch(() => { })
-      }
-    }, 60000)
+    timeLeft: 60
   })
+
+  const game = activeOttGames.get(gameId)
+  game.timeout = setInterval(async () => {
+    if (activeOttGames.has(gameId) && activeOttGames.get(gameId).state === 'PENDING') {
+      game.timeLeft -= 5
+      if (game.timeLeft <= 0) {
+        clearInterval(game.timeout)
+        activeOttGames.delete(gameId)
+        await startMsg.edit({ components: [], content: `Đã hết thời gian phản hồi. Hủy thách đấu.`, embeds: [] }).catch(() => { })
+      } else {
+        const updatedEmbed = EmbedBuilder.from(startMsg.embeds[0])
+        updatedEmbed.setDescription(`<@${message.author.id}> đã gửi lời thách đấu tới <@${targetUser.id}>!\n\n💰 **Tiền cược:** ${amount.toLocaleString()} coins.\n\nVui lòng chọn **Chấp nhận** hoặc **Từ chối** bên dưới.\n*(Còn lại: ${game.timeLeft} giây)*`)
+        await startMsg.edit({ embeds: [updatedEmbed] }).catch(() => { })
+      }
+    } else {
+      clearInterval(game.timeout)
+    }
+  }, 5000)
 }
 
 export async function handleOanTuTiInteraction(interaction) {
@@ -90,7 +103,7 @@ export async function handleOanTuTiInteraction(interaction) {
       return interaction.reply({ content: 'Bạn không có quyền thao tác trong trận đấu này.', ephemeral: true })
     }
 
-    clearTimeout(game.timeout)
+    clearInterval(game.timeout)
     activeOttGames.delete(gameId)
     return interaction.update({ components: [], content: `🚫 Thách đấu đã bị hủy bởi <@${interaction.user.id}>.`, embeds: [] })
   }
@@ -103,7 +116,7 @@ export async function handleOanTuTiInteraction(interaction) {
     // Xác nhận tiền 2 bên
     const challengerHasEnough = await checkBalance(game.challenger.id, game.challenger.name, game.amount)
     if (!challengerHasEnough) {
-      clearTimeout(game.timeout)
+      clearInterval(game.timeout)
       activeOttGames.delete(gameId)
       return interaction.update({ components: [], content: `❌ Thách đấu bị hủy do người gửi không còn đủ số dư cược.`, embeds: [] })
     }
@@ -118,7 +131,7 @@ export async function handleOanTuTiInteraction(interaction) {
     await updateBalance(game.target.id, game.target.name, -game.amount)
 
     // Đổi state
-    clearTimeout(game.timeout)
+    clearInterval(game.timeout)
     game.state = 'CHOOSING'
 
     const playingEmbed = new EmbedBuilder()
@@ -135,7 +148,18 @@ export async function handleOanTuTiInteraction(interaction) {
     await interaction.update({ content: '', embeds: [playingEmbed], components: [choosingRow] })
 
     // Viền timeout 15s xử thua AFK
-    game.timeout = setTimeout(() => resolveAFKTimeout(gameId), 15000)
+    game.timeLeft = 15
+    game.timeout = setInterval(() => {
+      game.timeLeft -= 5
+      if (game.timeLeft <= 0) {
+        clearInterval(game.timeout)
+        resolveAFKTimeout(gameId)
+      } else {
+        const embed = EmbedBuilder.from(game.message.embeds[0])
+        embed.setDescription(`Cả 2 bên đã khóa **${game.amount.toLocaleString()} coins** vào sòng.\n\nThời gian chọn vũ khí: **${game.timeLeft} giây**! Bấm ngay!\n(Nếu không chọn sẽ bị xử thua trắng)`)
+        game.message.edit({ embeds: [embed] }).catch(() => { })
+      }
+    }, 5000)
     return
   }
 
@@ -166,7 +190,7 @@ export async function handleOanTuTiInteraction(interaction) {
 
     // Nếu cả 2 đều đã chọn bài -> chốt
     if (game.challenger.ready && game.target.ready) {
-      clearTimeout(game.timeout)
+      clearInterval(game.timeout)
       resolveGame(gameId)
     }
   }

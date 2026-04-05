@@ -25,12 +25,11 @@ export async function handleHorseRacing(message, args) {
   game.state = 'BETTING'
   game.bets = []
 
-  const endTime = Math.floor(Date.now() / 1000) + 30;
-  const targetMs = Date.now() + 30000;
+  game.timeLeft = 30;
 
   const embed = new EmbedBuilder()
     .setTitle('Trường Đua Đã Mở')
-    .setDescription(`Cổng cược sẽ đóng **<t:${endTime}:R>**!\n\n*(Tỷ lệ ăn thưởng x4)*\n**Hãy bấm vào nút của ngựa bạn muốn cược bên dưới!**`)
+    .setDescription(`Cổng cược sẽ đóng sau **${game.timeLeft}s**!\n\n*(Tỷ lệ ăn thưởng x4)*\n**Hãy bấm vào nút của ngựa bạn muốn cược bên dưới!**`)
     .setColor('#5865F2')
 
   // Gắn 5 Nút ứng với 5 ngựa
@@ -53,11 +52,17 @@ export async function handleHorseRacing(message, args) {
       clearInterval(timer);
       return;
     }
-    if (Date.now() >= targetMs) {
+    
+    game.timeLeft -= 5;
+    if (game.timeLeft <= 0) {
       clearInterval(timer);
       startRace(message.channel, channelId);
+    } else {
+      const updatedEmbed = EmbedBuilder.from(game.startMessage.embeds[0]);
+      updatedEmbed.setDescription(`Cổng cược sẽ đóng sau **${game.timeLeft}s**!\n\n*(Tỷ lệ ăn thưởng x4)*\n**Hãy bấm vào nút của ngựa bạn muốn cược bên dưới!**`);
+      game.startMessage.edit({ embeds: [updatedEmbed] }).catch(() => {});
     }
-  }, 1000);
+  }, 5000);
 
   return
 }

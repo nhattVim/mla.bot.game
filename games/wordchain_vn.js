@@ -3,16 +3,20 @@ import { updateBalance, getWordChainHistory, saveWordChainHistory, clearWordChai
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
-const wordsList = require('../data/vn_words.json');
-const wordsSet = new Set(wordsList);
-
-// Tạo map để tra cứu tốc độ cao: Âm tiết đầu -> Danh sách từ
+const wordPairs = require('../data/wordPairs.json');
+const wordsList = [];
+const wordsSet = new Set();
 const syllableMap = new Map();
-for (const word of wordsList) {
-  const syllables = word.split(' ');
-  const first = syllables[0];
-  if (!syllableMap.has(first)) syllableMap.set(first, []);
-  syllableMap.get(first).push(word);
+
+for (const [first, seconds] of Object.entries(wordPairs)) {
+  const wordsForFirst = [];
+  for (const second of seconds) {
+    const word = `${first} ${second}`;
+    wordsList.push(word);
+    wordsSet.add(word);
+    wordsForFirst.push(word);
+  }
+  syllableMap.set(first, wordsForFirst);
 }
 
 export const activeWordChainsVn = new Map();
@@ -140,8 +144,8 @@ export async function handleWordChainVnMessage(message) {
   const syllables = content.split(/\s+/);
   if (syllables.length !== 2) return;
 
-  // Pattern check ký tự thuần việt, nếu có ký tự lạ (chấm, phẩy) thì skip
-  if (!/^[a-zàáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ\s]+$/.test(content)) return;
+  // Pattern check ký tự thuần việt, nếu có ký tự lạ (chấm, phẩy) thì skip, cho phép dấu gạch nối (VD: ô-tô)
+  if (!/^[a-zàáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ\s\-]+$/.test(content)) return;
 
   // Kiểm tra âm âm tiết đầu tiên có khớp với yêu cầu không
   if (syllables[0] !== game.currentSyllable) return;

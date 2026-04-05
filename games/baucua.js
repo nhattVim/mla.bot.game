@@ -318,9 +318,11 @@ async function triggerOpen(channelId, client) {
       if (p.totalWinReturn === 0 && p.totalLostBet > 0) {
         const hasShield = await consumeItem(userId, 'bua_mien_tu');
         if (hasShield) {
-            hostProfit -= p.totalLostBet; // Nhà cái không được ăn phần này
-            await updateBalance(userId, p.username, p.totalLostBet);
-            p.rescued = p.totalLostBet;
+            const randomPercent = Math.random() * (0.7 - 0.5) + 0.5;
+            const rescuedAmount = Math.floor(p.totalLostBet * randomPercent);
+            hostProfit -= rescuedAmount; // Nhà cái không được ăn phần được cứu
+            await updateBalance(userId, p.username, rescuedAmount);
+            p.rescued = rescuedAmount;
         }
       }
     }

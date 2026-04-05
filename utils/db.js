@@ -24,7 +24,9 @@ const userSchema = new mongoose.Schema({
   username: { type: String, required: true },
   balance: { type: Number, default: 1000 },
   lastDaily: { type: Date, default: null },
-  inventory: { type: Map, of: Number, default: {} } // Map item -> count
+  inventory: { type: Map, of: Number, default: {} }, // Map item -> count
+  dailyPurchases: { type: Map, of: Number, default: {} }, // Map item -> count bought today
+  lastPurchaseReset: { type: Date, default: null }
 })
 
 const User = mongoose.model('User', userSchema)
@@ -164,12 +166,36 @@ export async function buyItem(userId, username, itemId, cost) {
     if (!user.inventory) user.inventory = new Map()
     const currentQty = user.inventory.get(itemId) || 0
 
+    // Reset daily purchases if new day (UTC+7)
+    const now = new Date()
+    const vnNow = new Date(now.getTime() + 7 * 60 * 60 * 1000)
+    
+    if (user.lastPurchaseReset) {
+      const vnLastReset = new Date(user.lastPurchaseReset.getTime() + 7 * 60 * 60 * 1000)
+      if (vnNow.getUTCFullYear() !== vnLastReset.getUTCFullYear() || vnNow.getUTCMonth() !== vnLastReset.getUTCMonth() || vnNow.getUTCDate() !== vnLastReset.getUTCDate()) {
+        user.dailyPurchases = new Map() // clear stats
+      }
+    }
+    
+    if (!user.dailyPurchases) user.dailyPurchases = new Map()
+    const currentDailyQty = user.dailyPurchases.get(itemId) || 0
+
+    // Daily limit check
+    if (itemId === 'x2_reward' && currentDailyQty >= 4) {
+      return { success: false, message: 'Bạn đã đạt giới hạn mua 4 Vé Nhân Đôi hôm nay, hãy quay lại vào ngày mai!' }
+    }
+    if (itemId === 'bua_mien_tu' && currentDailyQty >= 4) {
+      return { success: false, message: 'Bạn đã đạt giới hạn mua 4 Bùa Miễn Tử hôm nay, hãy quay lại vào ngày mai!' }
+    }
+
     if (itemId.startsWith('title_') && currentQty > 0) {
       return { success: false, message: 'Cái danh hiệu này bạn đã gắn chìm vào tên rồi mua chi nữa!' }
     }
 
     user.balance -= cost
     user.inventory.set(itemId, currentQty + 1)
+    user.dailyPurchases.set(itemId, currentDailyQty + 1)
+    user.set('lastPurchaseReset', now)
     await user.save()
 
     return { success: true, balance: user.balance }

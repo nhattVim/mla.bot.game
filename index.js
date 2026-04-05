@@ -88,7 +88,7 @@ client.on('messageCreate', async (message) => {
       return handleOanTuTi(message, args)
     }
 
-    if (command === 'bj' || command === 'xidach') {
+    if (command === 'xd') {
       return handleBlackjack(message, args)
     }
 
@@ -124,7 +124,7 @@ client.on('messageCreate', async (message) => {
           { name: 'Oẳn Tù Tì', value: '`!ott @Người_chơi <Số_tiền>`\nThách đấu người chơi khác.\n', inline: false },
           { name: 'Nối Từ Tiếng Anh', value: '`!noitu start` hoặc `!wc start`\nMở phòng nối tiếng Anh.\n', inline: false },
           { name: 'Nối Từ Tiếng Việt', value: '`!noituvn start` hoặc `!wcvn start`\nMở phòng nối tiếng Việt.\n', inline: false },
-          { name: 'Blackjack', value: '`!bj <Số_tiền>` hoặc `!xidach <Số_tiền>`\nChơi Blackjack với Dealer.\n', inline: false },
+          { name: 'Xì Dách', value: '`!xd <Số_tiền>`\nChơi Xì Dách luật Việt Nam với Dealer.\n', inline: false },
           { name: 'Cửa Hàng', value: '`!shop` hoặc `!s`\nMua danh hiệu và vật phẩm.', inline: false },
           { name: 'Kinh Tế', value: '`!give @Người_chơi <Số_tiền>`: Chuyển tiền cho người khác.\n`!anxin @Người_chơi <Số_tiền>`: Yêu cầu người khác cho tiền.', inline: false }
         )

@@ -255,8 +255,10 @@ async function resolveGame(gameId) {
     let rescuedStr = ''
     const hasShield = await consumeItem(loser.id, 'bua_mien_tu')
     if (hasShield) {
-      await updateBalance(loser.id, loser.name, game.amount)
-      rescuedStr = `\n\n🛡️ **BẢO HỘ TỬ THẦN:** Bùa Miễn Tử bảo vệ <@${loser.id}>, hoàn trả **${game.amount.toLocaleString()} coins**!`
+      const randomPercent = Math.random() * (0.7 - 0.5) + 0.5;
+      const rescuedAmount = Math.floor(game.amount * randomPercent);
+      await updateBalance(loser.id, loser.name, rescuedAmount)
+      rescuedStr = `\n\n🛡️ **BẢO HỘ TỬ THẦN:** Bùa Miễn Tử phát huy tác dụng, hoàn trả **${rescuedAmount.toLocaleString()} coins** (tỉ lệ ${Math.floor(randomPercent * 100)}%)!`
     }
 
     resultText = `<@${game.challenger.id}>: **${cChoice.name}** ${cChoice.emoji}  💥VS💥  ${tChoice.emoji} **${tChoice.name}** :<@${game.target.id}>\n\n🏆 **Bên Thắng:** <@${winner.id}>\n🎉 Nhận thưởng **${finalWinAmt.toLocaleString()} coins**! ${hasX2 ? '(Vé x2 💰)' : ''}${rescuedStr}`

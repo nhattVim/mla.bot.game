@@ -36,6 +36,17 @@ function getHandValue(hand) {
   return value;
 }
 
+function checkSpecialHand(hand) {
+  if (hand.length === 2 && hand[0].rank === 'A' && hand[1].rank === 'A') return { type: 'XIBAN', rank: 3, mult: 3 };
+  if (hand.length === 2) {
+    const hasAce = hand.find(c => c.rank === 'A');
+    const has10 = hand.find(c => ['10', 'J', 'Q', 'K'].includes(c.rank));
+    if (hasAce && has10) return { type: 'XIDACH', rank: 2, mult: 2 };
+  }
+  if (hand.length === 5 && getHandValue(hand) <= 21) return { type: 'NGULINH', rank: 1, mult: 3 };
+  return { type: 'NORMAL', rank: 0, mult: 1 };
+}
+
 function formatHand(hand, hideDealerSecondCard = false) {
   if (hideDealerSecondCard) {
     return `${hand[0].rank}${hand[0].suit} ❓`;
@@ -45,7 +56,7 @@ function formatHand(hand, hideDealerSecondCard = false) {
 
 export async function handleBlackjack(message, args) {
   if (args.length === 0) {
-    return message.reply('Vui lòng nhập số tiền cược!\nVí dụ: `!bj 1000` hoặc `!bj all`');
+    return message.reply('Vui lòng nhập số tiền cược!\nVí dụ: `!xd 1000` hoặc `!xd all`');
   }
 
   const userId = message.author.id;
@@ -54,7 +65,7 @@ export async function handleBlackjack(message, args) {
   // Prevent multiple active games per user
   for (const game of activeGames.values()) {
     if (game.userId === userId) {
-      return message.reply('Bạn đang tham gia một ván Blackjack chưa kết thúc!');
+      return message.reply('Bạn đang tham gia một ván Xì Dách chưa kết thúc!');
     }
   }
 
@@ -72,7 +83,7 @@ export async function handleBlackjack(message, args) {
 
   const currentBalance = await getBalance(userId, username);
   if (currentBalance < amount) {
-    return message.reply('Bạn không có đủ xu để tham gia ván Blackjack này!');
+    return message.reply('Bạn không có đủ xu để tham gia ván Xì Dách này!');
   }
 
   // Deduct bet amount immediately
@@ -85,38 +96,40 @@ export async function handleBlackjack(message, args) {
   const pValue = getHandValue(playerHand);
   const dValue = getHandValue(dealerHand);
 
-  // Check initial blackjack
-  const isPlayerBJ = pValue === 21;
-  const isDealerBJ = dValue === 21;
+  // Check initial special win (Xì Bàn, Xì Dách)
+  const pSpecial = checkSpecialHand(playerHand);
+  const dSpecial = checkSpecialHand(dealerHand);
 
-  if (isPlayerBJ || isDealerBJ) {
+  if (pSpecial.rank >= 2 || dSpecial.rank >= 2) {
     let resultText = '';
     let resultDisplay = '';
 
-    if (isPlayerBJ && isDealerBJ) {
-      resultText = '🤝 Cả hai đều có Blackjack! Hoà!';
+    if (pSpecial.rank === dSpecial.rank) {
+      resultText = `🤝 Cả hai đều có ${pSpecial.type === 'XIBAN' ? 'Xì Vàng' : 'Xì Dách'}! Hoà cược!`;
       await updateBalance(userId, username, amount); // Refund
       resultDisplay = `Hoà nhận lại: +${amount.toLocaleString()} coins`;
-    } else if (isPlayerBJ) {
-      resultText = '💥 Blackjack! Bạn thắng!';
-      const winAmount = amount + Math.floor(amount * 1.5); // Rate 1.5 for BJ
-      await updateBalance(userId, username, winAmount);
-      resultDisplay = `Thắng: +${Math.floor(amount * 1.5).toLocaleString()} coins`;
+    } else if (pSpecial.rank > dSpecial.rank) {
+      const typeName = pSpecial.type === 'XIBAN' ? 'Xì Vàng' : 'Xì Dách';
+      resultText = `💥 **${typeName}!** Đỏ quá! Bạn thắng!`;
+      const pWinAmt = amount + (amount * pSpecial.mult);
+      await updateBalance(userId, username, pWinAmt);
+      resultDisplay = `Thắng: +${(amount * pSpecial.mult).toLocaleString()} coins${pSpecial.mult > 1 ? ` (Lãi x${pSpecial.mult})` : ''}`;
     } else {
-      resultText = '💥 Dealer có Blackjack! Bạn thua!';
+      const typeName = dSpecial.type === 'XIBAN' ? 'Xì Vàng' : 'Xì Dách';
+      resultText = `💥 Dealer có **${typeName}**! Xui ghê, thua cược!`;
       resultDisplay = `Thua: -${amount.toLocaleString()} coins`;
     }
 
     const embed = new EmbedBuilder()
-      .setTitle('Blackjack')
-      .setColor(isPlayerBJ && !isDealerBJ ? '#57F287' : (isDealerBJ && !isPlayerBJ ? '#ED4245' : '#FEE75C'))
+      .setTitle('Xì Dách')
+      .setColor(pSpecial.rank > dSpecial.rank ? '#57F287' : (pSpecial.rank < dSpecial.rank ? '#ED4245' : '#FEE75C'))
       .setDescription(`**Dealer:** ${formatHand(dealerHand)} (Tổng: ${dValue})\n**Player:** ${formatHand(playerHand)} (Tổng: ${pValue})\n\n${resultText}\n**${resultDisplay}**`);
 
     return message.reply({ embeds: [embed] });
   }
 
   const embed = new EmbedBuilder()
-    .setTitle('Blackjack')
+    .setTitle('Xì Dách')
     .setColor('#5865F2')
     .setDescription(`**Dealer:** ${formatHand(dealerHand, true)} (Tổng: ❓)\n**Player:** ${formatHand(playerHand)} (Tổng: ${pValue})`);
 
@@ -159,7 +172,7 @@ export async function handleBlackjack(message, args) {
 export async function handleBlackjackInteraction(interaction) {
   const game = activeGames.get(interaction.message.id);
   if (!game) {
-    return interaction.reply({ content: 'Ván bài Blackjack này đã kết thúc!', ephemeral: true });
+    return interaction.reply({ content: 'Ván bài Xì Dách này đã kết thúc!', ephemeral: true });
   }
 
   if (interaction.user.id !== game.userId) {
@@ -178,20 +191,33 @@ export async function handleBlackjackInteraction(interaction) {
       const dValue = getHandValue(dealerHand);
 
       const embed = new EmbedBuilder()
-        .setTitle('Blackjack')
+        .setTitle('Xì Dách')
         .setColor('#ED4245')
-        .setDescription(`**Dealer:** ${formatHand(dealerHand)} (Tổng: ${dValue})\n**Player:** ${formatHand(playerHand)} (Tổng: ${pValue})\n\n💥 Player Bust! Bạn đã vượt qua 21 và thua cược!\n**Thua: -${amount.toLocaleString()} coins**`);
+        .setDescription(`**Dealer:** ${formatHand(dealerHand)} (Tổng: ${dValue})\n**Player:** ${formatHand(playerHand)} (Tổng: ${pValue})\n\n💥 QUẮC (Bust)! Bạn đã vượt qua mốc 21 tuổi và bay mất xác!\n**Thua: -${amount.toLocaleString()} coins**`);
 
       return interaction.update({ embeds: [embed], components: [] });
-    } else {
-      // Đang an toàn
-      const embed = new EmbedBuilder()
-        .setTitle('Blackjack')
-        .setColor('#5865F2')
-        .setDescription(`**Dealer:** ${formatHand(dealerHand, true)} (Tổng: ❓)\n**Player:** ${formatHand(playerHand)} (Tổng: ${pValue})`);
-
-      return interaction.update({ embeds: [embed] });
     }
+
+    // Đang an toàn
+    const newRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('bj_hit')
+        .setLabel('Hit')
+        .setEmoji('👊')
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId('bj_stand')
+        .setLabel('Stand')
+        .setEmoji('🚫')
+        .setStyle(ButtonStyle.Danger)
+    );
+
+    const embed = new EmbedBuilder()
+      .setTitle('Xì Dách')
+      .setColor('#5865F2')
+      .setDescription(`**Dealer:** ${formatHand(dealerHand, true)} (Tổng: ❓)\n**Player:** ${formatHand(playerHand)} (Tổng: ${pValue})`);
+
+    return interaction.update({ embeds: [embed], components: [newRow] });
   }
 
   if (interaction.customId === 'bj_stand') {
@@ -202,7 +228,7 @@ export async function handleBlackjackInteraction(interaction) {
 
     // Mở bài Dealer ngay lập tức và xóa nút bấm
     let embed = new EmbedBuilder()
-      .setTitle('Blackjack')
+      .setTitle('Xì Dách')
       .setColor('#5865F2')
       .setDescription(`**Dealer:** ${formatHand(dealerHand)} (Tổng: ${dValue})\n**Player:** ${formatHand(playerHand)} (Tổng: ${pValue})`);
 
@@ -226,12 +252,33 @@ export async function handleBlackjackInteraction(interaction) {
     let resultDisplay = '';
     let isWin = false;
     let isTie = false;
+    let pWinMultiplier = 1;
 
-    if (dValue > 21) {
-      resultText = '💥 Dealer Bust! Bạn thắng!';
+    const isPlayerNguLinh = playerHand.length >= 5 && pValue <= 21;
+    const isDealerNguLinh = dealerHand.length >= 5 && dValue <= 21;
+
+    if (isPlayerNguLinh && isDealerNguLinh) {
+      if (pValue < dValue) {
+        resultText = '🎉 Cả hai đều Ngũ Linh, nhưng bạn điểm nhỏ hơn! Bạn thắng!';
+        isWin = true;
+        pWinMultiplier = 3;
+      } else if (pValue > dValue) {
+        resultText = '💥 Cả hai đều Ngũ Linh, nhưng Dealer điểm nhỏ hơn! Bạn thua!';
+      } else {
+        resultText = '🤝 Cả hai đều Ngũ Linh và bằng điểm! Hoà!';
+        isTie = true;
+      }
+    } else if (isPlayerNguLinh) {
+      resultText = '🎉 Bạn có Ngũ Linh! Thắng đậm!';
+      isWin = true;
+      pWinMultiplier = 3;
+    } else if (isDealerNguLinh) {
+      resultText = '💥 Dealer có Ngũ Linh! Bạn thua!';
+    } else if (dValue > 21) {
+      resultText = '💥 Dealer Quắc! Bạn thắng!';
       isWin = true;
     } else if (dValue > pValue) {
-      resultText = '💥 Dealer thắng! Bạn thua!';
+      resultText = '💥 Dealer lớn điểm hơn! Bạn thua!';
     } else if (dValue < pValue) {
       resultText = '🎉 Bạn thắng!';
       isWin = true;
@@ -241,8 +288,8 @@ export async function handleBlackjackInteraction(interaction) {
     }
 
     if (isWin) {
-      await updateBalance(userId, username, amount * 2);
-      resultDisplay = `Thắng: +${amount.toLocaleString()} coins`;
+      await updateBalance(userId, username, amount + (amount * pWinMultiplier));
+      resultDisplay = `Thắng: +${(amount * pWinMultiplier).toLocaleString()} coins${pWinMultiplier > 1 ? ` (Lãi x${pWinMultiplier})` : ''}`;
     } else if (isTie) {
       await updateBalance(userId, username, amount);
       resultDisplay = `Hoà nhận lại: +${amount.toLocaleString()} coins`;
@@ -251,7 +298,7 @@ export async function handleBlackjackInteraction(interaction) {
     }
 
     embed = new EmbedBuilder()
-      .setTitle('Blackjack')
+      .setTitle('Xì Dách')
       .setColor(isWin ? '#57F287' : (isTie ? '#FEE75C' : '#ED4245'))
       .setDescription(`**Dealer:** ${formatHand(dealerHand)} (Tổng: ${dValue})\n**Player:** ${formatHand(playerHand)} (Tổng: ${pValue})\n\n${resultText}\n**${resultDisplay}**`);
 

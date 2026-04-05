@@ -102,6 +102,13 @@ export async function handleHorseRacingInteraction(interaction) {
       return interaction.reply({ content: 'Bạn không có đủ xu để đặt cược.', ephemeral: true })
     }
 
+    // Chặn cược trên 3 ngựa khác nhau (Anti bao lô)
+    const userBets = game.bets.filter(b => b.userId === interaction.user.id)
+    const uniqueHorsesBet = new Set(userBets.map(b => b.horseIndex))
+    if (uniqueHorsesBet.size >= 3 && !uniqueHorsesBet.has(horseIndex)) {
+      return interaction.reply({ content: 'Bạn chỉ được phép đặt cược tối đa trên 3 con ngựa khác nhau trong một vòng đua!', ephemeral: true })
+    }
+
     await updateBalance(interaction.user.id, interaction.user.username, -amount)
 
     game.bets.push({
@@ -230,9 +237,13 @@ async function startRace(channel, channelId) {
     const hasShield = await consumeItem(loserId, 'bua_mien_tu')
     if (hasShield) {
       const totalLost = game.bets.filter((b) => b.userId === loserId).reduce((sum, b) => sum + b.amount, 0)
+      
+      const randomPercent = Math.random() * (0.7 - 0.5) + 0.5; // 0.5 to 0.7
+      const rescuedAmount = Math.floor(totalLost * randomPercent);
       const loserName = game.bets.find((b) => b.userId === loserId).username
-      await updateBalance(loserId, loserName, totalLost)
-      rescuedStr += `🛡️ <@${loserId}> được Bùa cứu mạng, hoàn trả **${totalLost.toLocaleString()} coins**!\n`
+      
+      await updateBalance(loserId, loserName, rescuedAmount)
+      rescuedStr += `🛡️ <@${loserId}> được Bùa cứu mạng, hoàn trả **${rescuedAmount.toLocaleString()} coins** (tỉ lệ ${Math.floor(randomPercent * 100)}%)!\n`
     }
   }
 

@@ -4,9 +4,9 @@ import { buyItem, getUserInventory, getBalance, checkBalance, updateBalance, gra
 export const SHOP_ITEMS = {
   'title_tanbinh': { name: '🥉 Huy Hiệu Tân Binh', desc: 'Hiển thị danh hiệu khi kiểm tra số dư.', price: 10000, type: 'title', emoji: '🥉' },
   'title_vip': { name: '👑 Đặc Quyền VIP', desc: 'Danh hiệu tối cao nâng cấp hồ sơ.', price: 100000, type: 'title', emoji: '👑' },
-  'bua_mien_tu': { name: '🛡️ Bùa Miễn Tử', desc: 'Bảo vệ tài sản khỏi 1 ván thua (tiêu hao 1 lần).', price: 5000, type: 'consumable', emoji: '🛡️' },
-  'x2_reward': { name: '💰 Vé Nhân Đôi', desc: 'Nhân đôi phần thưởng khi chiến thắng (tiêu hao 1 lần).', price: 10000, type: 'consumable', emoji: '💰' },
-  'hop_mu': { name: '🎁 Hộp Quà Bí Ẩn', desc: 'Nhận ngẫu nhiên Coin, Bùa Miễn Tử hoặc Vé x2.', price: 3000, type: 'gacha', emoji: '🎁' }
+  'bua_mien_tu': { name: '🛡️ Bùa Miễn Tử', desc: 'Bảo vệ tài sản khỏi 1 ván thua (tiêu hao 1 lần).', price: 10000, type: 'consumable', emoji: '🛡️' },
+  'x2_reward': { name: '💰 Vé Nhân Đôi', desc: 'Nhân đôi phần thưởng khi chiến thắng (tiêu hao 1 lần).', price: 30000, type: 'consumable', emoji: '💰' },
+  'hop_mu': { name: '🎁 Hộp Quà Bí Ẩn', desc: 'Nhận ngẫu nhiên Coin khủng, Bùa Miễn Tử hoặc Vé x2.', price: 15000, type: 'gacha', emoji: '🎁' }
 };
 
 export async function handleShop(message, args) {
@@ -21,8 +21,8 @@ export async function handleShop(message, args) {
       { name: SHOP_ITEMS['title_tanbinh'].name, value: `> 💰 Giá: **${SHOP_ITEMS['title_tanbinh'].price.toLocaleString()} coins**\n> 📋 ${SHOP_ITEMS['title_tanbinh'].desc}`, inline: true },
       { name: SHOP_ITEMS['title_vip'].name, value: `> 💰 Giá: **${SHOP_ITEMS['title_vip'].price.toLocaleString()} coins**\n> 📋 ${SHOP_ITEMS['title_vip'].desc}`, inline: true },
       { name: '==== 💊 Vật Phẩm Hỗ Trợ ====', value: 'Hiệu ứng (hệ thống tự động sử dụng khi đánh game):' },
-      { name: SHOP_ITEMS['bua_mien_tu'].name, value: `> 💰 Giá: **${SHOP_ITEMS['bua_mien_tu'].price.toLocaleString()} coins**\n> 📋 ${SHOP_ITEMS['bua_mien_tu'].desc}`, inline: true },
-      { name: SHOP_ITEMS['x2_reward'].name, value: `> 💰 Giá: **${SHOP_ITEMS['x2_reward'].price.toLocaleString()} coins**\n> 📋 ${SHOP_ITEMS['x2_reward'].desc}`, inline: true },
+      { name: SHOP_ITEMS['bua_mien_tu'].name, value: `> 💰 Giá: **${SHOP_ITEMS['bua_mien_tu'].price.toLocaleString()} coins**\n> 📋 ${SHOP_ITEMS['bua_mien_tu'].desc}\n> ⏳ **Giới hạn:** Tối đa 4 cái/ngày`, inline: true },
+      { name: SHOP_ITEMS['x2_reward'].name, value: `> 💰 Giá: **${SHOP_ITEMS['x2_reward'].price.toLocaleString()} coins**\n> 📋 ${SHOP_ITEMS['x2_reward'].desc}\n> ⏳ **Giới hạn:** Tối đa 4 cái/ngày`, inline: true },
       { name: SHOP_ITEMS['hop_mu'].name, value: `> 💰 Giá: **${SHOP_ITEMS['hop_mu'].price.toLocaleString()} coins**\n> 📋 ${SHOP_ITEMS['hop_mu'].desc}`, inline: false }
     )
     .setFooter({ text: 'Việc giao dịch không thể hoàn tác.' });
@@ -58,26 +58,43 @@ export async function handleShopInteraction(interaction) {
   if (itemId === 'hop_mu') {
     const hasEnough = await checkBalance(userId, username, item.price);
     if (!hasEnough) return interaction.reply({ content: `❌ Bạn không có đủ tiền để mua vật phẩm này.`, ephemeral: true });
-    
+
     await updateBalance(userId, username, -item.price);
-    
+
     // Random Phần Thưởng:
     const rand = Math.random();
     let rewardText = '';
     let finalBal = 0;
 
-    if (rand < 0.6) { // 60% rớt Tiền
-      const randCoin = Math.floor(Math.random() * (10000 - 500 + 1)) + 500;
+    // 85% rớt 1k -> 30k
+    if (rand < 0.85) {
+      const randCoin = Math.floor(Math.random() * (30000 - 1000 + 1)) + 1000;
       finalBal = await updateBalance(userId, username, randCoin);
       rewardText = `💵 **Tiền Thưởng! Nhận được ${randCoin.toLocaleString()} coins!**`;
-    } else if (rand < 0.8) { // 20% rớt Bùa
+    }
+    // 5% rớt Bùa
+    else if (rand < 0.90) {
       await grantItemDb(userId, username, 'bua_mien_tu');
       finalBal = await getBalance(userId, username);
       rewardText = `🛡️ **Bùa Miễn Tử! Cứu mạng 1 lần.**`;
-    } else { // 20% rớt x2
+    }
+    // 5% rớt Vé x2
+    else if (rand < 0.95) {
       await grantItemDb(userId, username, 'x2_reward');
       finalBal = await getBalance(userId, username);
       rewardText = `💰 **Vé Nhân Đôi! Tiền thưởng x2.**`;
+    }
+    // 4% rớt 100k
+    else if (rand < 0.99) {
+      const hugeReward = 100000;
+      finalBal = await updateBalance(userId, username, hugeReward);
+      rewardText = `💵 **JACKPOT! Trúng giải độc đắc ${hugeReward.toLocaleString()} coins!**`;
+    }
+    // 1% rớt 1m
+    else {
+      const megaReward = 1000000;
+      finalBal = await updateBalance(userId, username, megaReward);
+      rewardText = `💵 **🌟 SIÊU JACKPOT TỐI THƯỢNG!! NHẬN ${megaReward.toLocaleString()} COINS! 🌟**`;
     }
 
     const gachaEmbed = new EmbedBuilder()

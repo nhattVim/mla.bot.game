@@ -12,6 +12,7 @@ import { handleBlackjackMultiplayer, handleBlackMultiplayerInteraction } from '.
 import { handleWordChainCommand, handleWordChainMessage, restoreActiveGames } from './games/wordchain.js'
 import { handleWordChainVnCommand, handleWordChainVnMessage, restoreActiveGamesVn } from './games/wordchain_vn.js'
 import { getUserInventory } from './utils/db.js'
+import { checkRobberEvent } from './games/robber.js'
 
 dotenv.config()
 
@@ -35,6 +36,9 @@ client.once('ready', async () => {
 // Handle chat commands (Prefix commands)
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return
+
+  // Thêm trigger kiểm tra sự kiện Siêu Trộm
+  checkRobberEvent(message).catch(console.error)
 
   // Bắt tin nhắn để kiểm tra nếu kênh đang chơi Word Chain
   handleWordChainMessage(message)

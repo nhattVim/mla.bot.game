@@ -21,8 +21,8 @@ export async function handleShop(message, args) {
       { name: SHOP_ITEMS['title_tanbinh'].name, value: `> 💰 Giá: **${SHOP_ITEMS['title_tanbinh'].price.toLocaleString()} coins**\n> 📋 ${SHOP_ITEMS['title_tanbinh'].desc}`, inline: true },
       { name: SHOP_ITEMS['title_vip'].name, value: `> 💰 Giá: **${SHOP_ITEMS['title_vip'].price.toLocaleString()} coins**\n> 📋 ${SHOP_ITEMS['title_vip'].desc}`, inline: true },
       { name: '==== 💊 Vật Phẩm Hỗ Trợ ====', value: 'Hiệu ứng (hệ thống tự động sử dụng khi đánh game):' },
-      { name: SHOP_ITEMS['bua_mien_tu'].name, value: `> 💰 Giá: **${SHOP_ITEMS['bua_mien_tu'].price.toLocaleString()} coins**\n> 📋 ${SHOP_ITEMS['bua_mien_tu'].desc}\n> ⏳ **Giới hạn:** Tối đa 4 cái/ngày`, inline: true },
-      { name: SHOP_ITEMS['x2_reward'].name, value: `> 💰 Giá: **${SHOP_ITEMS['x2_reward'].price.toLocaleString()} coins**\n> 📋 ${SHOP_ITEMS['x2_reward'].desc}\n> ⏳ **Giới hạn:** Tối đa 4 cái/ngày`, inline: true },
+      { name: SHOP_ITEMS['bua_mien_tu'].name, value: `> 💰 Giá: **${SHOP_ITEMS['bua_mien_tu'].price.toLocaleString()} coins**\n> 📋 ${SHOP_ITEMS['bua_mien_tu'].desc}\n> ⏳ **Tác dụng tối đa:** 4 lần mỗi ngày`, inline: true },
+      { name: SHOP_ITEMS['x2_reward'].name, value: `> 💰 Giá: **${SHOP_ITEMS['x2_reward'].price.toLocaleString()} coins**\n> 📋 ${SHOP_ITEMS['x2_reward'].desc}\n> ⏳ **Tác dụng tối đa:** 4 lần mỗi ngày`, inline: true },
       { name: SHOP_ITEMS['hop_mu'].name, value: `> 💰 Giá: **${SHOP_ITEMS['hop_mu'].price.toLocaleString()} coins**\n> 📋 ${SHOP_ITEMS['hop_mu'].desc}`, inline: false }
     )
     .setFooter({ text: 'Việc giao dịch không thể hoàn tác.' });

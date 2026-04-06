@@ -26,6 +26,7 @@ const userSchema = new mongoose.Schema({
   lastDaily: { type: Date, default: null },
   inventory: { type: Map, of: Number, default: {} }, // Map item -> count
   dailyPurchases: { type: Map, of: Number, default: {} }, // Map item -> count bought today
+  dailyItemUsage: { type: Map, of: Number, default: {} }, // Map item -> count used today
   lastPurchaseReset: { type: Date, default: null }
 })
 
@@ -185,12 +186,7 @@ export async function buyItem(userId, username, itemId, cost) {
     const currentDailyQty = user.dailyPurchases.get(itemId) || 0
 
     // Daily limit check
-    if (itemId === 'x2_reward' && currentDailyQty >= 4) {
-      return { success: false, message: 'Bạn đã đạt giới hạn mua 4 Vé Nhân Đôi hôm nay, hãy quay lại vào ngày mai!' }
-    }
-    if (itemId === 'bua_mien_tu' && currentDailyQty >= 4) {
-      return { success: false, message: 'Bạn đã đạt giới hạn mua 4 Bùa Miễn Tử hôm nay, hãy quay lại vào ngày mai!' }
-    }
+    // Đã gỡ bỏ giới hạn mua hằng ngày cho Vé Nhân Đôi và Bùa Miễn Tử
 
     if (itemId.startsWith('title_') && currentQty > 0) {
       return { success: false, message: 'Cái danh hiệu này bạn đã gắn chìm vào tên rồi mua chi nữa!' }
@@ -216,6 +212,28 @@ export async function consumeItem(userId, itemId) {
 
     const qty = user.inventory.get(itemId) || 0
     if (qty <= 0) return false
+
+    if (itemId === 'x2_reward' || itemId === 'bua_mien_tu') {
+      const now = new Date()
+      const vnNow = new Date(now.getTime() + 7 * 60 * 60 * 1000)
+    
+      if (user.lastPurchaseReset) {
+        const vnLastReset = new Date(user.lastPurchaseReset.getTime() + 7 * 60 * 60 * 1000)
+        if (vnNow.getUTCFullYear() !== vnLastReset.getUTCFullYear() || vnNow.getUTCMonth() !== vnLastReset.getUTCMonth() || vnNow.getUTCDate() !== vnLastReset.getUTCDate()) {
+          user.dailyItemUsage = new Map()
+          user.dailyPurchases = new Map()
+        }
+      }
+      
+      if (!user.dailyItemUsage) user.dailyItemUsage = new Map()
+      const currentUsage = user.dailyItemUsage.get(itemId) || 0
+      
+      if (currentUsage >= 4) {
+        return false // Đã dùng hết 4 lần trong ngày
+      }
+      user.dailyItemUsage.set(itemId, currentUsage + 1)
+      user.set('lastPurchaseReset', now)
+    }
 
     user.inventory.set(itemId, qty - 1)
     await user.save()

@@ -8,6 +8,10 @@ const require = createRequire(import.meta.url);
 const triviaDb = require('../data/trivia_vn.json');
 const activeRobberGames = new Set();
 
+// Thêm ID kênh bạn muốn Cướp xuất hiện vào mảng này. Ví dụ: ['1234567890', '0987654321']
+// Nếu mảng trống, cướp có thể xuất hiện ở tất cả các kênh (trừ lúc đang nối từ).
+const ALLOWED_CHANNELS = ['1487814656230821988', '1490298042639843468', '1490297986364739626'];
+
 // Thuật toán đảo mảng (Fisher-Yates)
 function shuffle(array) {
   let currentIndex = array.length, randomIndex;
@@ -25,8 +29,14 @@ export async function checkRobberEvent(message) {
 
   if (activeRobberGames.has(userId)) return;
 
-  // Tránh đứt mạch game trò nối từ
   const channelId = message.channel.id;
+
+  // Lọc chỉ xuất hiện cướp ở những kênh đã định trước (nếu có cấu hình)
+  if (ALLOWED_CHANNELS.length > 0 && !ALLOWED_CHANNELS.includes(channelId)) {
+    return;
+  }
+
+  // Tránh đứt mạch game trò nối từ
   if (activeWordChains.has(channelId) || activeWordChainsVn.has(channelId)) return;
 
   // Tỉ lệ khoảng 5-10% cho các tỉ phú mỗi lần chat

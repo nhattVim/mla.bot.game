@@ -37,10 +37,8 @@ client.once('ready', async () => {
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return
 
-  // Thêm trigger kiểm tra sự kiện Siêu Trộm
   checkRobberEvent(message).catch(console.error)
 
-  // Bắt tin nhắn để kiểm tra nếu kênh đang chơi Word Chain
   handleWordChainMessage(message)
   handleWordChainVnMessage(message)
 

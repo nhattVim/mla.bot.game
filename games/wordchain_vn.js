@@ -73,7 +73,6 @@ export async function handleWordChainVnCommand(message, args) {
     const history = channelWordHistoryVn.get(channelId);
 
     let startWord = '';
-    // Tìm một từ random chưa dùng
     let attempts = 0;
     while (attempts < 1000) {
       const word = wordsList[Math.floor(Math.random() * wordsList.length)];
@@ -85,7 +84,6 @@ export async function handleWordChainVnCommand(message, args) {
     }
 
     if (!startWord) {
-        // Trường hợp rất hy hữu: Hết từ để random, dọn lịch sử
         history.usedWords.clear();
         clearWordChainHistory(dbChannelId).catch(() => {});
         startWord = wordsList[Math.floor(Math.random() * wordsList.length)];
@@ -137,20 +135,15 @@ export async function handleWordChainVnMessage(message) {
 
   const content = message.content.trim().toLowerCase();
 
-  // Bỏ qua tin nhắn lệnh bot hoặc tin nhắn chỉ có 1 từ
   if (content.startsWith('!')) return;
   
-  // Format check 2 âm tiết đơn giản
   const syllables = content.split(/\s+/);
   if (syllables.length !== 2) return;
 
-  // Pattern check ký tự thuần việt, nếu có ký tự lạ (chấm, phẩy) thì skip, cho phép dấu gạch nối (VD: ô-tô)
   if (!/^[a-zàáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ\s\-]+$/.test(content)) return;
 
-  // Kiểm tra âm âm tiết đầu tiên có khớp với yêu cầu không
   if (syllables[0] !== game.currentSyllable) return;
 
-  // Kiểm tra xem đã dùng từ này chưa
   if (game.history.usedWords.has(content)) {
     const passed = game.history.gameCount;
     const remain = 10 - passed;
@@ -158,26 +151,21 @@ export async function handleWordChainVnMessage(message) {
     return message.reply(`từ này đã được dùng trong ${pastText}, bạn có thể dùng lại sau ${remain} game nữa`);
   }
 
-  // Chống người chơi tự nối liên tục
   if (game.lastUserId === message.author.id) {
     return message.react('⏳').catch(() => { });
   }
 
-  // Kiểm tra từ có tồn tại trong từ điển không
   if (!wordsSet.has(content)) {
     return message.react('❌').catch(() => { });
   }
 
-  // == TỪ CỦA NGƯỜI CHƠI HỢP LỆ ==
   game.history.usedWords.add(content);
   game.lastUserId = message.author.id;
 
   const userId = message.author.id;
 
-  // Thưởng 100 coins
   await updateBalance(userId, message.author.username, 100);
   
-  // Cập nhật âm tiết tiếp theo
   const nextSyllable = syllables[1];
   game.currentSyllable = nextSyllable;
   
@@ -189,16 +177,13 @@ export async function handleWordChainVnMessage(message) {
     lastUserId: game.lastUserId
   }).catch(() => {});
   
-  // KIỂM TRA BÍ TỪ (WIN CONDITION)
   const validWordsWithNextSyllable = syllableMap.get(nextSyllable) || [];
   const isDeadEnd = !validWordsWithNextSyllable.some(w => !game.history.usedWords.has(w));
 
   if (isDeadEnd) {
-    // Thả emoji ăn mừng vô câu chốt của người thắng
     await message.react('🏆').catch(() => { });
     await message.react('🔥').catch(() => { });
 
-    // Cập nhật số tiền thưởng (20,000 + 100 đã cộng ở trên) = chỉ cộng thêm 19,900
     await updateBalance(userId, message.author.username, 19900);
 
     game.history.gameCount += 1;
@@ -229,7 +214,6 @@ export async function handleWordChainVnMessage(message) {
     activeWordChainsVn.delete(channelId);
     return;
   } else {
-    // Nếu chưa win, chỉ thả react OK
     await message.react('✅').catch(() => { });
   }
 }

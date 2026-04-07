@@ -54,9 +54,6 @@ function formatVisibleHand(hand) {
   return hand.map(c => `${c.rank}${c.suit}`).join(' ');
 }
 
-// ---------------------------
-// 1. MỞ PHÒNG (LOBBY)
-// ---------------------------
 export async function handleBlackjackMultiplayer(message, args) {
   const hostId = message.author.id;
   const username = message.author.username;
@@ -67,17 +64,12 @@ export async function handleBlackjackMultiplayer(message, args) {
     return message.reply('❌ Số tiền cược không hợp lệ!');
   }
 
-  // Nhà cái cần tối thiểu 20k
   const minHostBal = 20000;
   const hostCurrentBal = await getBalance(hostId, username);
   if (hostCurrentBal < minHostBal) {
     return message.reply(`❌ Bạn cần tối thiểu **${minHostBal.toLocaleString()} coins** để làm cái! Tránh rủi ro vỡ nợ không đền nổi tiền!`);
   }
 
-  // Tiền Cái thực sự có để chơi khô máu (Cho phép âm vốn nhưng initial phải >=20k) 
-  // System accepts negative db balances implicitly as long as validate uses logical checks.
-
-  // Check unique active
   for (const game of activeMultiGames.values()) {
     if (game.hostId === hostId || game.players.some(p => p.id === hostId)) {
       return message.reply(`❌ Bạn đang kẹt trong một phòng Xì Dách khác!`);
@@ -103,7 +95,7 @@ export async function handleBlackjackMultiplayer(message, args) {
     hostId,
     hostName: username,
     betAmount,
-    players: [], // { id, name, hand, isDone, doneText, payout (from bot), netProfit (for calculate against host) }
+    players: [],
     deck: [],
     hostHand: [],
     hostValue: 0,
@@ -140,9 +132,6 @@ export async function handleBlackjackMultiplayer(message, args) {
   }, 5000);
 }
 
-// ---------------------------
-// 2. KẾT NỐI TƯƠNG TÁC
-// ---------------------------
 export async function handleBlackMultiplayerInteraction(interaction) {
   const game = activeMultiGames.get(interaction.message.id);
   if (!game) {
@@ -152,7 +141,6 @@ export async function handleBlackMultiplayerInteraction(interaction) {
   const uid = interaction.user.id;
   const uname = interaction.user.username;
 
-  // LOBBY PHASE
   if (game.phase === 'LOBBY') {
     if (interaction.customId === 'bjm_join') {
       if (uid === game.hostId) return interaction.reply({ content: 'Làm Cái ngồi mâm riêng nhé Đại Vương!', ephemeral: true });
@@ -162,7 +150,6 @@ export async function handleBlackMultiplayerInteraction(interaction) {
       const bal = await getBalance(uid, uname);
       if (bal < game.betAmount) return interaction.reply({ content: `Không đủ ${game.betAmount.toLocaleString()} để đú!`, ephemeral: true });
 
-      // Cắt vé đút lót cho hệ thống tạm giam! Khỏi chuồn lệnh.
       await updateBalance(uid, uname, -game.betAmount);
       game.players.push({
         id: uid, name: uname, hand: [], isDone: false, doneText: '', payout: 0, netProfit: 0
@@ -186,7 +173,6 @@ export async function handleBlackMultiplayerInteraction(interaction) {
     return;
   }
 
-  // --- NÚT XEM BÀI CHUNG ---
   if (interaction.customId === 'bjm_peek') {
     if (uid === game.hostId) {
       if(game.hostHand.length === 0) return interaction.reply({ content: 'Chưa bốc dính bài!', ephemeral: true });
@@ -201,7 +187,6 @@ export async function handleBlackMultiplayerInteraction(interaction) {
     return interaction.reply({ content: `**(Bí Mật Tay Con)** ${txt}`, ephemeral: true });
   }
 
-  // --- PLAYBACK PHASE ---
   if (game.phase === 'PLAYBACK') {
     const isDealerTurn = game.turnIndex >= game.players.length;
     
@@ -265,9 +250,6 @@ export async function handleBlackMultiplayerInteraction(interaction) {
   }
 }
 
-// ---------------------------
-// 3. LOGIC XỬ LÝ (INTERNALS)
-// ---------------------------
 async function updateLobbyEmbed(interaction, game) {
   const pList = game.players.map((p, i) => `${i+1}. <@${p.id}>`).join('\n');
   const embed = new EmbedBuilder()

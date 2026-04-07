@@ -32,7 +32,6 @@ export async function handleHorseRacing(message, args) {
     .setDescription(`Cổng cược sẽ đóng sau **${game.timeLeft}s**!\n\n*(Tỷ lệ ăn thưởng x4)*\n**Hãy bấm vào nút của ngựa bạn muốn cược bên dưới!**`)
     .setColor('#5865F2')
 
-  // Gắn 5 Nút ứng với 5 ngựa
   const row = new ActionRowBuilder()
   HORSE_EMOJIS.forEach((emoji, idx) => {
     row.addComponents(
@@ -67,12 +66,10 @@ export async function handleHorseRacing(message, args) {
   return
 }
 
-// Hàm Xử lý Tương Tác từ index.js
 export async function handleHorseRacingInteraction(interaction) {
   if (interaction.isButton()) {
     const horseIndex = interaction.customId.split('_')[2]
 
-    // Popup Modal Nhập Cược
     const modal = new ModalBuilder().setCustomId(`modal_horse_${horseIndex}`).setTitle(`Cược Ngựa số ${parseInt(horseIndex) + 1} ${HORSE_EMOJIS[horseIndex]}`)
 
     const amountInput = new TextInputBuilder().setCustomId('amount').setLabel("Nhập số tiền (hoặc 'all' / 'allin')").setStyle(TextInputStyle.Short).setPlaceholder('Ví dụ: 1000').setRequired(true)
@@ -107,7 +104,6 @@ export async function handleHorseRacingInteraction(interaction) {
       return interaction.reply({ content: 'Bạn không có đủ xu để đặt cược.', ephemeral: true })
     }
 
-    // Chặn cược trên 3 ngựa khác nhau (Anti bao lô)
     const userBets = game.bets.filter(b => b.userId === interaction.user.id)
     const uniqueHorsesBet = new Set(userBets.map(b => b.horseIndex))
     if (uniqueHorsesBet.size >= 3 && !uniqueHorsesBet.has(horseIndex)) {
@@ -134,7 +130,6 @@ async function startRace(channel, channelId) {
   const game = activeGames.get(channelId)
   game.state = 'RACING'
 
-  // Tắt nút bấm khi vô race
   if (game.startMessage) {
     await game.startMessage.edit({ components: [] }).catch(() => { })
   }

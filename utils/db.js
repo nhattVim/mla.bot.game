@@ -24,9 +24,9 @@ const userSchema = new mongoose.Schema({
   username: { type: String, required: true },
   balance: { type: Number, default: 1000 },
   lastDaily: { type: Date, default: null },
-  inventory: { type: Map, of: Number, default: {} }, // Map item -> count
-  dailyPurchases: { type: Map, of: Number, default: {} }, // Map item -> count bought today
-  dailyItemUsage: { type: Map, of: Number, default: {} }, // Map item -> count used today
+  inventory: { type: Map, of: Number, default: {} },
+  dailyPurchases: { type: Map, of: Number, default: {} },
+  dailyItemUsage: { type: Map, of: Number, default: {} },
   lastPurchaseReset: { type: Date, default: null }
 })
 
@@ -178,15 +178,12 @@ export async function buyItem(userId, username, itemId, cost) {
     if (user.lastPurchaseReset) {
       const vnLastReset = new Date(user.lastPurchaseReset.getTime() + 7 * 60 * 60 * 1000)
       if (vnNow.getUTCFullYear() !== vnLastReset.getUTCFullYear() || vnNow.getUTCMonth() !== vnLastReset.getUTCMonth() || vnNow.getUTCDate() !== vnLastReset.getUTCDate()) {
-        user.dailyPurchases = new Map() // clear stats
+        user.dailyPurchases = new Map()
       }
     }
     
     if (!user.dailyPurchases) user.dailyPurchases = new Map()
     const currentDailyQty = user.dailyPurchases.get(itemId) || 0
-
-    // Daily limit check
-    // Đã gỡ bỏ giới hạn mua hằng ngày cho Vé Nhân Đôi và Bùa Miễn Tử
 
     if (itemId.startsWith('title_') && currentQty > 0) {
       return { success: false, message: 'Cái danh hiệu này bạn đã gắn chìm vào tên rồi mua chi nữa!' }
@@ -229,7 +226,7 @@ export async function consumeItem(userId, itemId) {
       const currentUsage = user.dailyItemUsage.get(itemId) || 0
       
       if (currentUsage >= 4) {
-        return false // Đã dùng hết 4 lần trong ngày
+        return false
       }
       user.dailyItemUsage.set(itemId, currentUsage + 1)
       user.set('lastPurchaseReset', now)

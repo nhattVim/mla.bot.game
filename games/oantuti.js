@@ -32,7 +32,6 @@ export async function handleOanTuTi(message, args) {
     return message.reply('Số tiền không hợp lệ!')
   }
 
-  // Check số dư người thách xem có đủ tiền lập phòng hay không (chưa bị trừ cho đến khi target đồng ý)
   const hasEnough = await checkBalance(message.author.id, message.author.username, amount)
   if (!hasEnough) {
     return message.reply('Bạn không có đủ xu để thách đấu.')
@@ -97,7 +96,6 @@ export async function handleOanTuTiInteraction(interaction) {
 
   const game = activeOttGames.get(gameId)
 
-  // Xử lý Hủy/Chấp nhận
   if (action === 'decline') {
     if (interaction.user.id !== game.target.id && interaction.user.id !== game.challenger.id) {
       return interaction.reply({ content: 'Bạn không có quyền thao tác trong trận đấu này.', ephemeral: true })
@@ -113,7 +111,6 @@ export async function handleOanTuTiInteraction(interaction) {
       return interaction.reply({ content: 'Chỉ người được thách đấu mới có thể chấp nhận.', ephemeral: true })
     }
 
-    // Xác nhận tiền 2 bên
     const challengerHasEnough = await checkBalance(game.challenger.id, game.challenger.name, game.amount)
     if (!challengerHasEnough) {
       clearInterval(game.timeout)
@@ -126,11 +123,9 @@ export async function handleOanTuTiInteraction(interaction) {
       return interaction.reply({ content: 'Bạn không có đủ xu để chấp nhận thách đấu này.', ephemeral: true })
     }
 
-    // Bắt đầu khóa tiền
     await updateBalance(game.challenger.id, game.challenger.name, -game.amount)
     await updateBalance(game.target.id, game.target.name, -game.amount)
 
-    // Đổi state
     clearInterval(game.timeout)
     game.state = 'CHOOSING'
 
@@ -147,7 +142,6 @@ export async function handleOanTuTiInteraction(interaction) {
 
     await interaction.update({ content: '', embeds: [playingEmbed], components: [choosingRow] })
 
-    // Viền timeout 15s xử thua AFK
     game.timeLeft = 15
     game.timeout = setInterval(() => {
       game.timeLeft -= 5
@@ -163,7 +157,6 @@ export async function handleOanTuTiInteraction(interaction) {
     return
   }
 
-  // Xử lý Người chơi đang Chọn vũ khí
   if (action === 'choose') {
     const weapon = parts[3]
     let playerKey = null
@@ -188,7 +181,6 @@ export async function handleOanTuTiInteraction(interaction) {
 
     await interaction.reply({ content: `✅ Đã lưu lựa chọn **${CHOICES[weapon].name}** ${CHOICES[weapon].emoji} của bạn.`, ephemeral: true })
 
-    // Nếu cả 2 đều đã chọn bài -> chốt
     if (game.challenger.ready && game.target.ready) {
       clearInterval(game.timeout)
       resolveGame(gameId)
@@ -210,16 +202,13 @@ async function resolveAFKTimeout(gameId) {
   let resultEmbed = new EmbedBuilder().setTitle('Hết Thời Gian').setColor('#ED4245')
 
   if (!cReady && !tReady) {
-    // Cả 2 đều AFK, Hoàn tiền
     await updateBalance(game.challenger.id, game.challenger.name, game.amount)
     await updateBalance(game.target.id, game.target.name, game.amount)
     resultEmbed.setDescription(`Cả hai người chơi đều không phản hồi! Hệ thống đã hoàn trả tiền cược.`)
   } else if (!cReady && tReady) {
-    // Challenger thua AFK
     await updateBalance(game.target.id, game.target.name, game.amount * 2)
     resultEmbed.setDescription(`Xử Thua: <@${game.challenger.id}> không phản hồi!\n<@${game.target.id}> nhận được **${(game.amount * 2).toLocaleString()} coins**.`)
   } else if (cReady && !tReady) {
-    // Target thua AFK
     await updateBalance(game.challenger.id, game.challenger.name, game.amount * 2)
     resultEmbed.setDescription(`Xử Thua: <@${game.target.id}> không phản hồi!\n<@${game.challenger.id}> nhận được **${(game.amount * 2).toLocaleString()} coins**.`)
   }
@@ -248,20 +237,17 @@ async function resolveGame(gameId) {
     await sleep(1500)
   }
 
-  // Chốt kết quả
   let winner = null
   let loser = null
   let resultText = ''
   let isTie = false
 
   if (game.challenger.choice === game.target.choice) {
-    // Hòa: Hoàn tiền cực đẹp
     isTie = true
     await updateBalance(game.challenger.id, game.challenger.name, game.amount)
     await updateBalance(game.target.id, game.target.name, game.amount)
     resultText = `🤝 **HÒA NHAU!** Cả hai đều ra ${cChoice.emoji}!\nTiền cược đã được hoàn trả.`
   } else {
-    // Check ai thắng ai bại
     if (cChoice.beats === game.target.choice) {
       winner = game.challenger
       loser = game.target

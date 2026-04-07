@@ -106,7 +106,6 @@ export async function handleAnXinInteraction(interaction) {
 
   const { beggarId, targetId, amount } = req;
 
-  // Only the target can interact
   if (interaction.user.id !== targetId) {
     return interaction.reply({ content: 'Chỉ người được yêu cầu mới có thể phản hồi.', ephemeral: true })
   }

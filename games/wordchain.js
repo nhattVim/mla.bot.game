@@ -50,7 +50,6 @@ export async function handleWordChainCommand(message, args) {
       return message.reply('Phòng này đang có một ván Nối Từ! Hãy tham gia bằng cách tìm từ.');
     }
 
-    // Lấy random 1 từ có ít nhất 4 chữ cái làm mốc
     if (!channelWordHistory.has(channelId)) {
       const dbHistory = await getWordChainHistory(channelId);
       if (dbHistory) {
@@ -74,7 +73,7 @@ export async function handleWordChainCommand(message, args) {
       channelId: channelId,
       currentLetter: currentLetter,
       history: history,
-      scores: {}, // { userId: { 'a': 1, 'b': 2 } }
+      scores: {},
       lastUserId: null
     };
 
@@ -107,9 +106,7 @@ export async function handleWordChainMessage(message) {
 
   const content = message.content.trim().toLowerCase();
 
-  // Game nối chữ tiếng anh chỉ nên duyệt các từ đơn
   if (content.includes(' ')) return;
-  // Bỏ qua các tin nhắn có dấu phẩy, các lệnh gọi bot
   if (content.startsWith('!') || !/^[a-z]+$/.test(content)) return;
 
   const channelId = message.channel.id;
@@ -117,10 +114,8 @@ export async function handleWordChainMessage(message) {
 
   if (!game) return;
 
-  // Chỉ bắt đầu dò khi chữ cái đầu tiên khớp currentLetter
   if (content[0] !== game.currentLetter) return;
 
-  // Lọc từ dùng rồi
   if (game.history.usedWords.has(content)) {
     const passed = game.history.gameCount;
     const remain = 10 - passed;
@@ -128,21 +123,17 @@ export async function handleWordChainMessage(message) {
     return message.reply(`Từ này đã được dùng trong ${pastText}, bạn có thể dùng lại sau ${remain} game nữa`);
   }
 
-  // Chặn 1 user tự spam liên tục
   if (game.lastUserId === message.author.id) {
     return message.react('⏳').catch(() => { });
   }
 
-  // Check từ hợp lệ trong từ điển
   if (!wordsSet.has(content)) {
     return message.react('❌').catch(() => { });
   }
 
-  // Khúc này từ hoàn toàn hợp lệ
   game.history.usedWords.add(content);
   game.lastUserId = message.author.id;
 
-  // Gắn điểm tích lũy theo kí tự khởi đầu
   const startChar = content[0];
   const userId = message.author.id;
 
@@ -152,21 +143,16 @@ export async function handleWordChainMessage(message) {
   game.scores[userId][startChar] += 1;
   const currentCount = game.scores[userId][startChar];
 
-  // Thưởng 100 coins cho mỗi từ ghép đúng
   await updateBalance(userId, message.author.username, 100);
 
-  // Cập nhật chữ yêu cầu tiếp theo
   game.currentLetter = content[content.length - 1];
 
   await message.react('✅').catch(() => { });
 
-  // Nếu bằng hoặc qua 10 là thắng!
   if (currentCount >= 10) {
-    // Thả emoji ăn mừng vô câu của người thắng rồi báo game
     await message.react('🔟').catch(() => { });
     await message.react('🎉').catch(() => { });
 
-    // Chỉ thưởng thêm 9900 coins ở đây vì họ vừa được nhận +100 ở trên rồi (tổng 10000)
     await updateBalance(userId, message.author.username, 9900);
 
     game.history.gameCount += 1;
@@ -199,7 +185,6 @@ export async function handleWordChainMessage(message) {
     return;
   }
 
-  // Chỉ thả số vào khi họ chưa cán mốc win
   if (currentCount > 0 && currentCount < 10) {
     saveWordChainState(channelId, {
        usedWords: Array.from(game.history.usedWords),

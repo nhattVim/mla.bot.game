@@ -62,7 +62,6 @@ export async function handleBlackjack(message, args) {
   const userId = message.author.id;
   const username = message.author.username;
 
-  // Prevent multiple active games per user
   for (const game of activeGames.values()) {
     if (game.userId === userId) {
       return message.reply('Bạn đang tham gia một ván Xì Dách chưa kết thúc!');
@@ -86,7 +85,6 @@ export async function handleBlackjack(message, args) {
     return message.reply('Bạn không có đủ xu để tham gia ván Xì Dách này!');
   }
 
-  // Deduct bet amount immediately
   await updateBalance(userId, username, -amount);
 
   const deck = createDeck();
@@ -96,7 +94,6 @@ export async function handleBlackjack(message, args) {
   const pValue = getHandValue(playerHand);
   const dValue = getHandValue(dealerHand);
 
-  // Check initial special win (Xì Bàn, Xì Dách)
   const pSpecial = checkSpecialHand(playerHand);
   const dSpecial = checkSpecialHand(dealerHand);
 
@@ -106,7 +103,7 @@ export async function handleBlackjack(message, args) {
 
     if (pSpecial.rank === dSpecial.rank) {
       resultText = `🤝 Cả hai đều có ${pSpecial.type === 'XIBAN' ? 'Xì Vàng' : 'Xì Dách'}! Hoà cược!`;
-      await updateBalance(userId, username, amount); // Refund
+      await updateBalance(userId, username, amount);
       resultDisplay = `Hoà nhận lại: +${amount.toLocaleString()} coins`;
     } else if (pSpecial.rank > dSpecial.rank) {
       const typeName = pSpecial.type === 'XIBAN' ? 'Xì Vàng' : 'Xì Dách';
@@ -164,7 +161,6 @@ export async function handleBlackjack(message, args) {
     messageId: reply.id
   });
 
-  // Timeout sau 60s
   setTimeout(() => {
     if (activeGames.has(reply.id)) {
       activeGames.delete(reply.id);
@@ -192,7 +188,6 @@ export async function handleBlackjackInteraction(interaction) {
     const pValue = getHandValue(playerHand);
 
     if (pValue > 21) {
-      // Bust
       activeGames.delete(interaction.message.id);
       const dValue = getHandValue(dealerHand);
 
@@ -204,7 +199,6 @@ export async function handleBlackjackInteraction(interaction) {
       return interaction.update({ embeds: [embed], components: [] });
     }
 
-    // Đang an toàn
     const newRow = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId('bj_hit')
@@ -232,7 +226,6 @@ export async function handleBlackjackInteraction(interaction) {
     const pValue = getHandValue(playerHand);
     let dValue = getHandValue(dealerHand);
 
-    // Mở bài Dealer ngay lập tức và xóa nút bấm
     let embed = new EmbedBuilder()
       .setTitle('Xì Dách')
       .setColor('#5865F2')
@@ -242,7 +235,6 @@ export async function handleBlackjackInteraction(interaction) {
 
     const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-    // Lặp để rút bài cho Dealer (có delay)
     while (dValue < 17) {
       await sleep(1500);
       dealerHand.push(deck.pop());
@@ -252,7 +244,7 @@ export async function handleBlackjackInteraction(interaction) {
       await interaction.message.edit({ embeds: [embed] }).catch(() => { });
     }
 
-    await sleep(1000); // Dừng xíu cho kịch tính trước khi báo giá
+    await sleep(1000);
 
     let resultText = '';
     let resultDisplay = '';

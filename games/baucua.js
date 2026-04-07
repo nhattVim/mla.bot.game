@@ -20,7 +20,7 @@ const COLORS = {
 };
 
 const MIN_HOST_BALANCE = 20000;
-const GAME_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const GAME_TIMEOUT_MS = 5 * 60 * 1000;
 
 function buildBoardEmbed(game, hostId, hostName, timeLeft) {
   let description = `**Chủ sòng:** <@${hostId}>\n`;
@@ -112,7 +112,6 @@ export async function handleBauCua(message, args) {
   const startMsg = await message.channel.send({ embeds: [embed], components: [row1, row2, row3] });
   game.startMessage = startMsg;
 
-  // Auto-update & countdown interval (5s)
   const timer = setInterval(() => {
     const cg = activeGames.get(channelId);
     if (!cg || cg.state !== 'BETTING') {
@@ -127,7 +126,7 @@ export async function handleBauCua(message, args) {
     } else {
       const newEmbed = buildBoardEmbed(cg, cg.hostId, cg.hostName, cg.timeLeft);
       cg.startMessage.edit({ embeds: [newEmbed] }).catch(() => {});
-      cg.updatePending = false; // Reset since we already updated the latest bets
+      cg.updatePending = false;
     }
   }, 5000);
 }
@@ -204,7 +203,6 @@ export async function handleBauCuaInteraction(interaction) {
       return interaction.reply({ content: 'Bạn không có đủ xu để đặt cược.', ephemeral: true });
     }
 
-    // Trừ tiền cược của người chơi ngay lập tức
     await updateBalance(interaction.user.id, interaction.user.username, -amount);
 
     game.bets.push({
@@ -223,13 +221,12 @@ export async function handleBauCuaInteraction(interaction) {
 async function triggerOpen(channelId, client) {
   const game = activeGames.get(channelId);
   if (!game || game.state !== 'BETTING') return;
-  game.state = 'ROLLING'; // Ngăn chặn sự kiện mới
+  game.state = 'ROLLING';
 
   try {
     const channel = await client.channels.fetch(channelId);
 
     if (game.startMessage) {
-      // Khóa sòng: xóa các nút bấm
       await game.startMessage.edit({ components: [] }).catch(() => {});
     }
 
@@ -269,7 +266,6 @@ async function triggerOpen(channelId, client) {
     let hostProfit = 0;
     const userSummary = {};
 
-    // 1st pass: Account for wins and losses
     for (const bet of game.bets) {
       if (!userSummary[bet.userId]) {
          userSummary[bet.userId] = { username: bet.username, totalWinReturn: 0, totalLostBet: 0, totalBet: 0 };
@@ -278,19 +274,16 @@ async function triggerOpen(channelId, client) {
       
       const count = resultCounts[bet.animal] || 0;
       if (count > 0) {
-        // Return = Gốc + Lời
         const winAmt = bet.amount + (bet.amount * count); 
         userSummary[bet.userId].totalWinReturn += winAmt;
         
-        // Nhà cái phải bù phần tiền lời, không bù tiền gốc (vì gốc nhà cái chưa lấy)
         hostProfit -= (bet.amount * count); 
       } else {
         userSummary[bet.userId].totalLostBet += bet.amount;
-        hostProfit += bet.amount; // Nhà cái lấy tiền cược thua
+        hostProfit += bet.amount;
       }
     }
 
-    // 2nd pass: Apply items (x2 & Shield) and transfer money
     for (const [userId, p] of Object.entries(userSummary)) {
       if (p.totalWinReturn > 0) {
         const hasX2 = await consumeItem(userId, 'x2_reward');
@@ -298,29 +291,26 @@ async function triggerOpen(channelId, client) {
         if (hasX2) {
             finalReturn *= 2;
             const extra = finalReturn - p.totalWinReturn; 
-            hostProfit -= extra; // Nhà cái phải ói thêm tiền túi để trả x2
+            hostProfit -= extra;
             p.x2 = true;
         }
         await updateBalance(userId, p.username, finalReturn);
       }
       
-      // Bùa cứu mạng chỉ kích hoạt nếu hoàn toàn trắng tay trong ván
       if (p.totalWinReturn === 0 && p.totalLostBet > 0) {
         const hasShield = await consumeItem(userId, 'bua_mien_tu');
         if (hasShield) {
             const randomPercent = Math.random() * (0.7 - 0.5) + 0.5;
             const rescuedAmount = Math.floor(p.totalLostBet * randomPercent);
-            hostProfit -= rescuedAmount; // Nhà cái không được ăn phần được cứu
+            hostProfit -= rescuedAmount;
             await updateBalance(userId, p.username, rescuedAmount);
             p.rescued = rescuedAmount;
         }
       }
     }
 
-    // Cập nhật lợi nhuận/lỗ cho Chủ Sòng (có thể làm balance âm)
     await updateBalance(game.hostId, game.hostName, hostProfit);
 
-    // Chuẩn bị Text Bảng Xếp Hạng
     let summaryText = '';
     const allBettors = Object.values(userSummary);
     if (allBettors.length === 0) {
@@ -329,12 +319,10 @@ async function triggerOpen(channelId, client) {
       for (const p of allBettors) {
         let text = `👤 **${p.username}**: `;
         
-        // Tiền nhận về
         let finalReturn = p.totalWinReturn;
         if (p.x2) finalReturn *= 2;
         if (p.rescued) finalReturn += p.rescued; 
 
-        // Net = Nhận về - (Tổng các khoản đã cược)
         const net = finalReturn - p.totalBet;
 
         if (net > 0) {

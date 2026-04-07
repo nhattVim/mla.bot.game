@@ -31,7 +31,6 @@ export async function checkRobberEvent(message) {
 
   const channelId = message.channel.id;
 
-  // Lọc chỉ xuất hiện cướp ở những kênh đã định trước (nếu có cấu hình)
   if (ALLOWED_CHANNELS.length > 0 && !ALLOWED_CHANNELS.includes(channelId)) {
     return;
   }
@@ -39,18 +38,14 @@ export async function checkRobberEvent(message) {
   // Tránh đứt mạch game trò nối từ
   if (activeWordChains.has(channelId) || activeWordChainsVn.has(channelId)) return;
 
-  // Tỉ lệ khoảng 5-10% cho các tỉ phú mỗi lần chat
   if (Math.random() > 0.1) return;
 
   const balance = await getBalance(userId, username);
-  if (balance < 1000000000) return; // Chỉ áp dụng cho người chơi trên 1 tỷ
+  if (balance < 1000000000) return;
 
   activeRobberGames.add(userId);
 
-  // Chọn 1 câu hỏi ngẫu nhiên trong CSDL
   const randomTrivia = triviaDb[Math.floor(Math.random() * triviaDb.length)];
-
-  // Trộn các đáp án
   const options = [...randomTrivia.options];
   shuffle(options);
   const correctIndex = options.indexOf(randomTrivia.answer);
@@ -91,9 +86,8 @@ export async function checkRobberEvent(message) {
     const chosenIndex = parseInt(i.customId.split('_')[2], 10);
 
     if (chosenIndex === correctIndex) {
-      // Đúng -> win
       activeRobberGames.delete(userId);
-      const reward = 500000; // 500k
+      const reward = 500000;
       await updateBalance(userId, username, reward);
       const winEmbed = new EmbedBuilder()
         .setTitle('🎉 Câu Trả Lời Hoàn Hảo! 🧠')
@@ -101,10 +95,9 @@ export async function checkRobberEvent(message) {
         .setDescription(`<@${userId}> quả là người có kho tàng kiến thức sâu rộng!\n\nTên cướp vô cùng ngưỡng mộ, xin phép cúi đầu rút lui và tặng lại bạn **${reward.toLocaleString()} coins**.\n\n✔️ **Đáp án chính xác:** ${randomTrivia.answer}`);
       await gameMsg.edit({ embeds: [winEmbed], components: [] }).catch(() => { });
     } else {
-      // Sai -> lose
       activeRobberGames.delete(userId);
       const currentBal = await getBalance(userId, username);
-      const lostAmount = Math.floor(currentBal * 0.05); // Mất 5% (trừ từ từ)
+      const lostAmount = Math.floor(currentBal * 0.05);
       await updateBalance(userId, username, -lostAmount);
 
       const loseEmbed = new EmbedBuilder()
@@ -118,9 +111,8 @@ export async function checkRobberEvent(message) {
   collector.on('end', async (collected, reason) => {
     if (reason === 'time') {
       activeRobberGames.delete(userId);
-      // Timeout -> Lột tiền
       const currentBal = await getBalance(userId, username);
-      const lostAmount = Math.floor(currentBal * 0.10); // Phạt 10% nếu quá giờ
+      const lostAmount = Math.floor(currentBal * 0.10);
       await updateBalance(userId, username, -lostAmount);
 
       const timeoutEmbed = new EmbedBuilder()

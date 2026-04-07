@@ -54,43 +54,36 @@ export async function handleShopInteraction(interaction) {
   const userId = interaction.user.id;
   const username = interaction.user.username;
 
-  // Xử lý riêng Hộp Mù (Gacha Mua xong bóc luôn)
   if (itemId === 'hop_mu') {
     const hasEnough = await checkBalance(userId, username, item.price);
     if (!hasEnough) return interaction.reply({ content: `❌ Bạn không có đủ tiền để mua vật phẩm này.`, ephemeral: true });
 
     await updateBalance(userId, username, -item.price);
 
-    // Random Phần Thưởng:
     const rand = Math.random();
     let rewardText = '';
     let finalBal = 0;
 
-    // 85% rớt 1k -> 30k
     if (rand < 0.85) {
       const randCoin = Math.floor(Math.random() * (30000 - 1000 + 1)) + 1000;
       finalBal = await updateBalance(userId, username, randCoin);
       rewardText = `💵 **Tiền Thưởng! Nhận được ${randCoin.toLocaleString()} coins!**`;
     }
-    // 5% rớt Bùa
     else if (rand < 0.90) {
       await grantItemDb(userId, username, 'bua_mien_tu');
       finalBal = await getBalance(userId, username);
       rewardText = `🛡️ **Bùa Miễn Tử! Cứu mạng 1 lần.**`;
     }
-    // 5% rớt Vé x2
     else if (rand < 0.95) {
       await grantItemDb(userId, username, 'x2_reward');
       finalBal = await getBalance(userId, username);
       rewardText = `💰 **Vé Nhân Đôi! Tiền thưởng x2.**`;
     }
-    // 4% rớt 100k
     else if (rand < 0.99) {
       const hugeReward = 100000;
       finalBal = await updateBalance(userId, username, hugeReward);
       rewardText = `💵 **JACKPOT! Trúng giải độc đắc ${hugeReward.toLocaleString()} coins!**`;
     }
-    // 1% rớt 1m
     else {
       const megaReward = 1000000;
       finalBal = await updateBalance(userId, username, megaReward);
@@ -111,7 +104,6 @@ export async function handleShopInteraction(interaction) {
     return interaction.reply({ content: `❌ Giao dịch thất bại: **${result.message}**`, ephemeral: true });
   }
 
-  // Mua thành công
   const successEmbed = new EmbedBuilder()
     .setTitle('Giao Dịch Thành Công')
     .setColor('#57F287')

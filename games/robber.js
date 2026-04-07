@@ -97,13 +97,13 @@ export async function checkRobberEvent(message) {
     } else {
       activeRobberGames.delete(userId);
       const currentBal = await getBalance(userId, username);
-      const lostAmount = Math.floor(currentBal * 0.05);
+      const lostAmount = Math.floor(currentBal * 0.20);
       await updateBalance(userId, username, -lostAmount);
 
       const loseEmbed = new EmbedBuilder()
         .setTitle('💸 Trả Lời Sai Rồi! 💸')
         .setColor('#ED4245')
-        .setDescription(`<@${userId}> đã đưa ra một đáp án sai lệch.\n\nTên cướp đã thu **${lostAmount.toLocaleString()} coins** (5% tài sản) làm phí bổ túc kiến thức.\n\n❌ **Đáp án thực sự là:** ${randomTrivia.answer}`);
+        .setDescription(`<@${userId}> đã đưa ra một đáp án sai lệch.\n\nTên cướp đã thu **${lostAmount.toLocaleString()} coins** (20% tài sản) làm phí bổ túc kiến thức.\n\n❌ **Đáp án thực sự là:** ${randomTrivia.answer}`);
       await gameMsg.edit({ embeds: [loseEmbed], components: [] }).catch(() => { });
     }
   });
@@ -112,13 +112,13 @@ export async function checkRobberEvent(message) {
     if (reason === 'time') {
       activeRobberGames.delete(userId);
       const currentBal = await getBalance(userId, username);
-      const lostAmount = Math.floor(currentBal * 0.10);
+      const lostAmount = Math.floor(currentBal * 0.30);
       await updateBalance(userId, username, -lostAmount);
 
       const timeoutEmbed = new EmbedBuilder()
         .setTitle('⏳ Đã Quá Thời Gian! ⏳')
         .setColor('#ED4245')
-        .setDescription(`Vượt quá 15 giây quy định! Suy nghĩ lâu hay bạn đang cầu cứu Google?\n\nTên cướp mất kiên nhẫn và đã móc túi **${lostAmount.toLocaleString()} coins** (10% tài sản) của <@${userId}>.\n\n❌ **Đáp án đúng là:** ${randomTrivia.answer}`);
+        .setDescription(`Vượt quá 15 giây quy định! Suy nghĩ lâu hay bạn đang cầu cứu Google?\n\nTên cướp mất kiên nhẫn và đã móc túi **${lostAmount.toLocaleString()} coins** (30% tài sản) của <@${userId}>.\n\n❌ **Đáp án đúng là:** ${randomTrivia.answer}`);
       await gameMsg.edit({ embeds: [timeoutEmbed], components: [] }).catch(() => { });
     }
   });

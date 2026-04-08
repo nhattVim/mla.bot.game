@@ -44,6 +44,39 @@ const wordChainSchema = new mongoose.Schema({
 
 const WordChain = mongoose.model('WordChain', wordChainSchema)
 
+const triviaSchema = new mongoose.Schema({
+  question: { type: String, required: true },
+  options: { type: [String], required: true },
+  answer: { type: String, required: true }
+})
+const Trivia = mongoose.model('Trivia', triviaSchema)
+
+export async function seedTriviaIfEmpty(triviaArray) {
+  if (!isConnected) return false
+  try {
+    const count = await Trivia.countDocuments()
+    if (count === 0 && triviaArray && triviaArray.length > 0) {
+      await Trivia.insertMany(triviaArray)
+      console.log(`[Trivia] Đã nạp thành công ${triviaArray.length} câu hỏi gốc vào MongoDB!`)
+    }
+    return true
+  } catch (error) {
+    console.error('Lỗi khi nạp Trivia vào DB:', error)
+    return false
+  }
+}
+
+export async function getRandomTrivia() {
+  if (!isConnected) return null
+  try {
+    const results = await Trivia.aggregate([{ $sample: { size: 1 } }])
+    return results.length > 0 ? results[0] : null
+  } catch (error) {
+    console.error('Lỗi khi lấy Trivia từ DB:', error)
+    return null
+  }
+}
+
 export async function getBalance(userId, username) {
   if (!isConnected) return 1000
   try {

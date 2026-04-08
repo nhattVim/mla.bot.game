@@ -76,9 +76,7 @@ client.on('messageCreate', async (message) => {
         const embed = new EmbedBuilder()
           .setColor('#57F287')
           .setTitle('📅 Điểm Danh Hằng Ngày')
-          .setDescription(
-            `Điểm danh thành công! Bạn nhận được **${result.reward.toLocaleString()} coins**.\n\ Số dư hiện tại: **${result.balance.toLocaleString()} coins**.`
-          )
+          .setDescription(`Điểm danh thành công! Bạn nhận được **${result.reward.toLocaleString()} coins**.\n\ Số dư hiện tại: **${result.balance.toLocaleString()} coins**.`)
         return message.reply({ embeds: [embed] })
       }
     }

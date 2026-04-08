@@ -179,6 +179,7 @@ export async function buyItem(userId, username, itemId, cost) {
       const vnLastReset = new Date(user.lastPurchaseReset.getTime() + 7 * 60 * 60 * 1000)
       if (vnNow.getUTCFullYear() !== vnLastReset.getUTCFullYear() || vnNow.getUTCMonth() !== vnLastReset.getUTCMonth() || vnNow.getUTCDate() !== vnLastReset.getUTCDate()) {
         user.dailyPurchases = new Map()
+        user.dailyItemUsage = new Map()
       }
     }
     

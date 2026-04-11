@@ -11,8 +11,9 @@ import { handleBlackjack, handleBlackjackInteraction } from './games/blackjack.j
 import { handleBlackjackMultiplayer, handleBlackMultiplayerInteraction } from './games/blackjack_multi.js'
 import { handleWordChainCommand, handleWordChainMessage, restoreActiveGames } from './games/wordchain.js'
 import { handleWordChainVnCommand, handleWordChainVnMessage, restoreActiveGamesVn } from './games/wordchain_vn.js'
-import { getUserInventory } from './utils/db.js'
+import { getUserInventory, getRankData } from './utils/db.js'
 import { checkRobberEvent } from './games/robber.js'
+import { handleRankCommand, RANK_NAMES } from './games/rank.js'
 
 dotenv.config()
 
@@ -61,10 +62,13 @@ client.on('messageCreate', async (message) => {
       if (inventory['bua_mien_tu']) consumableStr += `\n🛡️ Bùa Miễn Tử: **${inventory['bua_mien_tu']}** cái`
       if (inventory['x2_reward']) consumableStr += `\n💰 Vé Tranh Đoạt x2: **${inventory['x2_reward']}** cái`
 
+      const rankData = await getRankData(message.author.id, message.author.username)
+      const rankName = RANK_NAMES[rankData.rankLevel || 0]
+
       const embed = new EmbedBuilder()
         .setColor('#57F287')
         .setAuthor({ name: message.author.username + titleStr, iconURL: message.author.displayAvatarURL() })
-        .setDescription(`💰 Số dư hiện tại: **${balance.toLocaleString()}** coins.` + (consumableStr ? `\n\n**🎒 Hành Trang:**${consumableStr}` : ''))
+        .setDescription(`🏆 Cảnh Giới: **${rankName}**\n💰 Số dư hiện tại: **${balance.toLocaleString()}** coins.` + (consumableStr ? `\n\n**🎒 Hành Trang:**${consumableStr}` : ''))
       return message.reply({ embeds: [embed] })
     }
 
@@ -112,6 +116,10 @@ client.on('messageCreate', async (message) => {
       return handleWordChainVnCommand(message, args)
     }
 
+    if (command === 'rank') {
+      return handleRankCommand(message, args)
+    }
+
     if (command === 'give') {
       return handleGive(message, args)
     }
@@ -134,7 +142,8 @@ client.on('messageCreate', async (message) => {
           { name: 'Nối Từ Tiếng Việt', value: '`!noituvn start` hoặc `!wcvn start`\nMở phòng nối tiếng Việt.\n', inline: false },
           { name: 'Xì Dách', value: '`!xd <Số_tiền>`\nChơi Xì Dách luật Việt Nam với Dealer.\n', inline: false },
           { name: 'Cửa Hàng', value: '`!shop` hoặc `!s`\nMua danh hiệu và vật phẩm.', inline: false },
-          { name: 'Kinh Tế', value: '`!give @Người_chơi <Số_tiền>`: Chuyển tiền cho người khác.\n`!anxin @Người_chơi <Số_tiền>`: Yêu cầu người khác cho tiền.', inline: false }
+          { name: 'Kinh Tế', value: '`!give @Người_chơi <Số_tiền>`: Chuyển tiền cho người khác.\n`!anxin @Người_chơi <Số_tiền>`: Yêu cầu người khác cho tiền.', inline: false },
+          { name: 'Hệ Thống Tu Vi', value: '`!rank`: Xem thông tin Rank.\n`!rank up <số coin>`: Đổi xu để thăng cấp tu vi.\n`!rank top`: Vinh danh top bảng xếp hạng Chí tôn.', inline: false }
         )
       return message.reply({ embeds: [embed] })
     }

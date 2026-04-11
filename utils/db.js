@@ -27,7 +27,9 @@ const userSchema = new mongoose.Schema({
   inventory: { type: Map, of: Number, default: {} },
   dailyPurchases: { type: Map, of: Number, default: {} },
   dailyItemUsage: { type: Map, of: Number, default: {} },
-  lastPurchaseReset: { type: Date, default: null }
+  lastPurchaseReset: { type: Date, default: null },
+  rankLevel: { type: Number, default: 0 },
+  rankPoints: { type: Number, default: 0 }
 })
 
 const User = mongoose.model('User', userSchema)
@@ -331,6 +333,71 @@ export async function clearWordChainHistory(channelId) {
     return true
   } catch (error) {
     return false
+  }
+}
+
+// ========================
+// HỆ THỐNG RANK HƯ DANH
+// ========================
+
+export async function spendCoinsForRank(userId, username, coinsToSpend) {
+  if (!isConnected) return { success: false, message: 'Hệ thống DB đang offline!' }
+  if (isNaN(coinsToSpend) || coinsToSpend <= 0) return { success: false, message: 'Số tiền không hợp lệ!' }
+  try {
+    let user = await User.findOne({ userId })
+    if (!user) user = new User({ userId, username, balance: 1000 })
+    
+    if (user.balance < coinsToSpend) return { success: false, message: 'Số dư không đủ để chuyển hóa vinh quang!' }
+    user.balance -= coinsToSpend
+    await user.save()
+    return { success: true, balance: user.balance }
+  } catch (error) {
+    return { success: false, message: 'Lỗi giao dịch đổi hạng!' }
+  }
+}
+
+export async function getRankData(userId, username) {
+  if (!isConnected) return { rankLevel: 0, rankPoints: 0 }
+  try {
+    let user = await User.findOne({ userId })
+    if (!user) {
+      user = new User({ userId, username })
+      await user.save()
+    }
+    return { rankLevel: user.rankLevel || 0, rankPoints: user.rankPoints || 0 }
+  } catch (err) {
+    return { rankLevel: 0, rankPoints: 0 }
+  }
+}
+
+export async function updateRankData(userId, username, rankLevel, rankPoints) {
+  if (!isConnected) return false
+  try {
+    let user = await User.findOne({ userId })
+    if (!user) {
+      user = new User({ userId, username, rankLevel, rankPoints })
+    } else {
+      user.rankLevel = rankLevel
+      user.rankPoints = rankPoints
+      user.username = username
+    }
+    await user.save()
+    return true
+  } catch (err) {
+    return false
+  }
+}
+
+export async function getTopRanks(limit = 10) {
+  if (!isConnected) return []
+  try {
+    return await User.find({ $or: [{ rankLevel: { $gt: 0 } }, { rankPoints: { $gt: 0 } }] })
+      .sort({ rankLevel: -1, rankPoints: -1 })
+      .limit(limit)
+      .select('username rankLevel rankPoints -_id')
+      .lean()
+  } catch (e) {
+    return []
   }
 }
 

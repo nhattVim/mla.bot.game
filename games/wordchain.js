@@ -12,18 +12,18 @@ export const channelWordHistory = new Map();
 export async function restoreActiveGames(dbDataList) {
   for (const data of dbDataList) {
     if (data.channelId.startsWith('vn_')) continue;
-    
+
     channelWordHistory.set(data.channelId, {
-       usedWords: new Set(data.usedWords || []),
-       gameCount: data.gameCount || 0
+      usedWords: new Set(data.usedWords || []),
+      gameCount: data.gameCount || 0
     });
 
     const game = {
-       channelId: data.channelId,
-       currentLetter: data.currentLetter,
-       history: channelWordHistory.get(data.channelId),
-       scores: data.scores || {},
-       lastUserId: data.lastUserId
+      channelId: data.channelId,
+      currentLetter: data.currentLetter,
+      history: channelWordHistory.get(data.channelId),
+      scores: data.scores || {},
+      lastUserId: data.lastUserId
     };
     activeWordChains.set(data.channelId, game);
   }
@@ -38,7 +38,7 @@ export async function handleWordChainCommand(message, args) {
   if (action === 'stop') {
     if (activeWordChains.has(channelId)) {
       activeWordChains.delete(channelId);
-      saveWordChainState(channelId, { isActive: false }).catch(() => {});
+      saveWordChainState(channelId, { isActive: false }).catch(() => { });
       return message.reply('Đã kết thúc trò chơi Nối Từ ở phòng này. (Lịch sử các từ dùng vẫn được giữ nguyên trong DB)');
     } else {
       return message.reply('Hiện không có ván Nối Từ nào đang hoạt động ở đây.');
@@ -86,7 +86,7 @@ export async function handleWordChainCommand(message, args) {
       currentLetter: currentLetter,
       lastUserId: null,
       scores: {}
-    }).catch(() => {});
+    }).catch(() => { });
 
     const embed = new EmbedBuilder()
       .setTitle('Game Nối Từ Bắt Đầu!')
@@ -165,10 +165,10 @@ export async function handleWordChainMessage(message) {
       resetMsg = `\n\n🔄 **Đã đạt giới hạn 10 ván. Bộ nhớ các từ đã dùng vừa được xóa sạch!**`;
     } else {
       saveWordChainState(channelId, {
-         usedWords: Array.from(game.history.usedWords),
-         gameCount: game.history.gameCount,
-         isActive: false
-      }).catch(() => {});
+        usedWords: Array.from(game.history.usedWords),
+        gameCount: game.history.gameCount,
+        isActive: false
+      }).catch(() => { });
       resetMsg = `\n*(Lưu ý: Các từ đã dùng ở ván này sẽ tiếp tục bị cấm ở ván sau!)*`;
     }
 
@@ -187,13 +187,13 @@ export async function handleWordChainMessage(message) {
 
   if (currentCount > 0 && currentCount < 10) {
     saveWordChainState(channelId, {
-       usedWords: Array.from(game.history.usedWords),
-       gameCount: game.history.gameCount,
-       isActive: true,
-       currentLetter: game.currentLetter,
-       lastUserId: game.lastUserId,
-       scores: game.scores
-    }).catch(() => {});
+      usedWords: Array.from(game.history.usedWords),
+      gameCount: game.history.gameCount,
+      isActive: true,
+      currentLetter: game.currentLetter,
+      lastUserId: game.lastUserId,
+      scores: game.scores
+    }).catch(() => { });
     await message.react(EMOJI_NUMBERS[currentCount]).catch(() => { });
   }
 }

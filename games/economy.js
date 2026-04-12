@@ -7,7 +7,7 @@ export const activeAnxin = new Map();
 export async function handleGive(message, args) {
   const targetUser = message.mentions.users.first()
   if (!targetUser) return message.reply('Vui lòng tag người bạn muốn cho tiền!')
-  
+
   let amount = 0
   for (const arg of args) {
     const val = parseInt(arg, 10)
@@ -87,7 +87,7 @@ export async function handleAnXin(message, args) {
       const timeoutEmbed = new EmbedBuilder()
         .setColor('#ED4245')
         .setDescription(`Yêu cầu chuyển tiền của <@${message.author.id}> tới <@${targetUser.id}> đã hết hạn.`);
-      sentMsg.edit({ content: '', embeds: [timeoutEmbed], components: [] }).catch(() => {});
+      sentMsg.edit({ content: '', embeds: [timeoutEmbed], components: [] }).catch(() => { });
     }
   }, 1000);
 
@@ -120,13 +120,13 @@ export async function handleAnXinInteraction(interaction) {
     const embed = new EmbedBuilder()
       .setColor('#ED4245')
       .setDescription(`Yêu cầu chuyển tiền của <@${beggarId}> đã bị <@${targetId}> từ chối.`)
-    
+
     return interaction.update({ content: '', embeds: [embed], components: [] })
   }
 
   if (action === 'accept') {
     const result = await transferMoney(targetId, interaction.user.username, beggarId, beggarName, amount)
-    
+
     if (!result.success) {
       return interaction.reply({ content: `Giao dịch thất bại: ${result.message}`, ephemeral: true })
     }

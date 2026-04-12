@@ -46,21 +46,21 @@ export async function handleRankCommand(message, args) {
     const rankPoints = rankData.rankPoints
     const rankName = RANK_NAMES[rankLevel]
 
-    let description = `🏆 **Cấp Vị Hiện Tại:** \`${rankName}\`\n\n`
+    let description = `🏆 Rank hiện tại: \`${rankName}\` `
 
     if (rankLevel === 33) {
-      description += `🔮 **Điểm Tu Vi Vô Dận:** **${rankPoints.toLocaleString()}** Điểm\n`
+      description += `- \`${rankPoints.toLocaleString()} Điểm\`\n\n`
       description += `*(Bạn đã đạt đến đỉnh cao võ học. Càng nhiều điểm bảng xếp hạng càng kính nể!)*`
     } else {
       const required = COST_TABLE[rankLevel]
       const progress = ((rankPoints / required) * 100).toFixed(1)
-      description += `⚡ **Điểm Tích Lũy:** **${rankPoints.toLocaleString()}** / **${required.toLocaleString()}** Điểm\n`
-      description += `📈 **Tiến Trình Đột Phá:** ${progress}%\n`
+      description += `\n\n⚡ **Điểm Tích Lũy:** **${rankPoints.toLocaleString()}** / **${required.toLocaleString()}** Điểm\n`
+      description += `📈 **Tiến Trình Đột Phá:** ${progress}%\n\n`
       description += `*(Mục tiêu tiếp theo: ${RANK_NAMES[rankLevel + 1]})*`
     }
 
     const embed = new EmbedBuilder()
-      .setTitle(`Hồ Sơ Xếp Hạng - ${message.author.username}`)
+      .setTitle(`Hồ Sơ Xếp Hạng - ${message.author.displayName}`)
       .setThumbnail(message.author.displayAvatarURL())
       .setColor('#FFD700')
       .setDescription(description)

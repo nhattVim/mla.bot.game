@@ -67,7 +67,7 @@ client.on('messageCreate', async (message) => {
 
       const embed = new EmbedBuilder()
         .setColor('#57F287')
-        .setAuthor({ name: message.author.username + titleStr, iconURL: message.author.displayAvatarURL() })
+        .setAuthor({ name: message.author.displayName + titleStr, iconURL: message.author.displayAvatarURL() })
         .setDescription(`🏆 Cảnh Giới: **${rankName}**\n💰 Số dư hiện tại: **${balance.toLocaleString()}** coins.` + (consumableStr ? `\n\n**🎒 Hành Trang:**${consumableStr}` : ''))
       return message.reply({ embeds: [embed] })
     }
@@ -86,46 +86,46 @@ client.on('messageCreate', async (message) => {
     }
 
     if (command === 'dn') {
-      return handleHorseRacing(message, args)
+      return await handleHorseRacing(message, args)
     }
 
     if (command === 'bc') {
-      return handleBauCua(message, args)
+      return await handleBauCua(message, args)
     }
 
     if (command === 'ott') {
-      return handleOanTuTi(message, args)
+      return await handleOanTuTi(message, args)
     }
 
     if (command === 'xd') {
       if (args.length >= 2 && args[1].toLowerCase() === 'host') {
-        return handleBlackjackMultiplayer(message, args)
+        return await handleBlackjackMultiplayer(message, args)
       }
-      return handleBlackjack(message, args)
+      return await handleBlackjack(message, args)
     }
 
     if (command === 'shop' || command === 's') {
-      return handleShop(message, args)
+      return await handleShop(message, args)
     }
 
     if (command === 'noitu' || command === 'wc') {
-      return handleWordChainCommand(message, args)
+      return await handleWordChainCommand(message, args)
     }
 
     if (command === 'noituvn' || command === 'wcvn') {
-      return handleWordChainVnCommand(message, args)
+      return await handleWordChainVnCommand(message, args)
     }
 
     if (command === 'rank') {
-      return handleRankCommand(message, args)
+      return await handleRankCommand(message, args)
     }
 
     if (command === 'give') {
-      return handleGive(message, args)
+      return await handleGive(message, args)
     }
 
     if (command === 'anxin') {
-      return handleAnXin(message, args)
+      return await handleAnXin(message, args)
     }
 
     if (command === 'help') {
@@ -157,36 +157,36 @@ client.on('messageCreate', async (message) => {
 client.on('interactionCreate', async (interaction) => {
   try {
     if (interaction.customId?.startsWith('bet_horse_') || interaction.customId?.startsWith('modal_horse_')) {
-      return handleHorseRacingInteraction(interaction)
+      return await handleHorseRacingInteraction(interaction)
     }
 
     if (interaction.customId?.startsWith('bet_bc_') || interaction.customId?.startsWith('modal_bc_') || interaction.customId?.startsWith('bc_host_')) {
-      return handleBauCuaInteraction(interaction)
+      return await handleBauCuaInteraction(interaction)
     }
 
     if (interaction.customId?.startsWith('ott_')) {
-      return handleOanTuTiInteraction(interaction)
+      return await handleOanTuTiInteraction(interaction)
     }
 
     if (interaction.customId?.startsWith('bj_')) {
-      return handleBlackjackInteraction(interaction)
+      return await handleBlackjackInteraction(interaction)
     }
 
     if (interaction.customId?.startsWith('bjm_')) {
-      return handleBlackMultiplayerInteraction(interaction)
+      return await handleBlackMultiplayerInteraction(interaction)
     }
 
     if (interaction.customId?.startsWith('shopbuy_')) {
-      return handleShopInteraction(interaction)
+      return await handleShopInteraction(interaction)
     }
 
     if (interaction.customId?.startsWith('anxin_')) {
-      return handleAnXinInteraction(interaction)
+      return await handleAnXinInteraction(interaction)
     }
   } catch (e) {
     console.error('Interaction Error:', e)
     if (!interaction.replied && !interaction.deferred) {
-      await interaction.reply({ content: 'Đã xảy ra lỗi khi xử lý thao tác của bạn!', ephemeral: true }).catch(() => {})
+      await interaction.reply({ content: 'Đã xảy ra lỗi khi xử lý thao tác của bạn!', ephemeral: true }).catch(() => { })
     }
   }
 })
@@ -207,4 +207,13 @@ const server = http.createServer((req, res) => {
 const PORT = process.env.PORT || 3000
 server.listen(PORT, () => {
   console.log(`🌐 [Render Config] Dummy Web Server đang giữ cổng (PORT): ${PORT}`)
+})
+
+// Bắt lỗi global để tránh crash app
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Anti-Crash] Unhandled Rejection at:', promise, 'reason:', reason)
+})
+
+process.on('uncaughtException', (error) => {
+  console.error('[Anti-Crash] Uncaught Exception:', error)
 })

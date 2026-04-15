@@ -13,7 +13,7 @@ import { handleWordChainCommand, handleWordChainMessage, restoreActiveGames } fr
 import { handleWordChainVnCommand, handleWordChainVnMessage, restoreActiveGamesVn } from './games/wordchain_vn.js'
 import { getUserInventory, getRankData } from './utils/db.js'
 import { checkRobberEvent } from './games/robber.js'
-import { handleRankCommand, RANK_NAMES } from './games/rank.js'
+import { handleRankCommand, RANK_NAMES, getRankIcon } from './games/rank.js'
 
 dotenv.config()
 
@@ -55,20 +55,29 @@ client.on('messageCreate', async (message) => {
 
       let titleStr = ''
       let consumableStr = ''
+      let inventoryItems = []
 
       if (inventory['title_vip']) titleStr = ' - ' + SHOP_ITEMS['title_vip'].emoji + ' ' + SHOP_ITEMS['title_vip'].name
       else if (inventory['title_tanbinh']) titleStr = ' - ' + SHOP_ITEMS['title_tanbinh'].emoji + ' ' + SHOP_ITEMS['title_tanbinh'].name
 
-      if (inventory['bua_mien_tu']) consumableStr += `\n🛡️ Bùa Miễn Tử: **${inventory['bua_mien_tu']}** cái`
-      if (inventory['x2_reward']) consumableStr += `\n💰 Vé Tranh Đoạt x2: **${inventory['x2_reward']}** cái`
+      if (inventory['bua_mien_tu']) inventoryItems.push(`🛡️ Bùa Miễn Tử: **${inventory['bua_mien_tu']}** cái`)
+      if (inventory['x2_reward']) inventoryItems.push(`💰 Vé Tranh Đoạt x2: **${inventory['x2_reward']}** cái`)
+
+      if (inventoryItems.length > 0) {
+        consumableStr = '\n\n🎒 Hành Trang:\n' + inventoryItems.map((item) => {
+          return `\u00A0\u00A0•\u00A0\u00A0 ${item}`
+        }).join('\n')
+      }
 
       const rankData = await getRankData(message.author.id, message.author.username)
-      const rankName = RANK_NAMES[rankData.rankLevel || 0]
+      const rankLevelInfo = rankData.rankLevel || 0
+      const rankName = RANK_NAMES[rankLevelInfo]
+      const rankIcon = getRankIcon(rankLevelInfo)
 
       const embed = new EmbedBuilder()
         .setColor('#57F287')
         .setAuthor({ name: message.author.displayName + titleStr, iconURL: message.author.displayAvatarURL() })
-        .setDescription(`🏆 Cảnh Giới: **${rankName}**\n💰 Số dư hiện tại: **${balance.toLocaleString()}** coins.` + (consumableStr ? `\n\n**🎒 Hành Trang:**${consumableStr}` : ''))
+        .setDescription(`🏆 Cảnh Giới: ${rankIcon} ${rankName}\n💰 Số dư hiện tại: ${balance.toLocaleString()} coins.` + consumableStr)
       return message.reply({ embeds: [embed] })
     }
 

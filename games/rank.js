@@ -14,6 +14,16 @@ export const RANK_NAMES = [
   'Độc Cô Cầu Bại' // 33
 ]
 
+export function getRankIcon(level) {
+  if (level <= 4) return '<:a1:1493619549268873216>'
+  if (level <= 9) return '<:a2:1493619577425367050>'
+  if (level <= 14) return '<:a3:1493619601341157520>'
+  if (level <= 19) return '<:a4:1493619630042910800>'
+  if (level <= 24) return '<:a5:1493619652952068259>'
+  if (level <= 29) return '<:a6:1493619676356280490>'
+  return '<:a7:1493619704256925829>'
+}
+
 export const COST_TABLE = [
   // Đồng I -> V
   1000, 2000, 3000, 4000, 5000, // 0,1,2,3,4
@@ -45,8 +55,9 @@ export async function handleRankCommand(message, args) {
     const rankLevel = rankData.rankLevel
     const rankPoints = rankData.rankPoints
     const rankName = RANK_NAMES[rankLevel]
+    const rankIcon = getRankIcon(rankLevel)
 
-    let description = `🏆 Rank hiện tại: \`${rankName}\` `
+    let description = `Rank hiện tại: ${rankIcon} - \`${rankName}\` `
 
     if (rankLevel === 33) {
       description += `- \`${rankPoints.toLocaleString()} Điểm\`\n\n`
@@ -54,8 +65,8 @@ export async function handleRankCommand(message, args) {
     } else {
       const required = COST_TABLE[rankLevel]
       const progress = ((rankPoints / required) * 100).toFixed(1)
-      description += `\n\n⚡ **Điểm Tích Lũy:** **${rankPoints.toLocaleString()}** / **${required.toLocaleString()}** Điểm\n`
-      description += `📈 **Tiến Trình Đột Phá:** ${progress}%\n\n`
+      description += `\n\n⚡ Điểm Tích Lũy: ${rankPoints.toLocaleString()} / ${required.toLocaleString()} Điểm\n`
+      description += `📈 Tiến Trình Đột Phá: ${progress}%\n\n`
       description += `*(Mục tiêu tiếp theo: ${RANK_NAMES[rankLevel + 1]})*`
     }
 
@@ -113,16 +124,20 @@ export async function handleRankCommand(message, args) {
 
     await updateRankData(message.author.id, message.author.username, currentLevel, currentPoints)
 
-    let replyMsg = `🔥 Đã tinh luyện **${coinsToSpend.toLocaleString()} Coins** thành công!\n`
+    let replyMsg = `🔥 Đã tinh luyện **${coinsToSpend.toLocaleString()} Coins** thành **${pointsToAdd.toLocaleString()} Điểm**!\n`
 
     if (levelUpCount > 0) {
-      replyMsg += `\n🎉 **ĐỘT PHÁ CẢNH GIỚI!** Bạn đã thăng cấp lên: **${RANK_NAMES[currentLevel]}**\n`
+      const rankIcon = getRankIcon(currentLevel)
+      replyMsg += `\n🎉 **ĐỘT PHÁ CẢNH GIỚI!** Bạn đã thăng cấp lên: ${rankIcon} **${RANK_NAMES[currentLevel]}**\n`
     }
 
     if (currentLevel === 33) {
       replyMsg += `\n🔮 **Tu Vi Vô Dận:** **${currentPoints.toLocaleString()}** Điểm`
     } else {
-      replyMsg += `\n⚡ **Điểm Tích Lũy Ở Cấp Hiện Tại:** **${currentPoints.toLocaleString()}** / **${COST_TABLE[currentLevel].toLocaleString()}** Điểm`
+      const pointsNeeded = COST_TABLE[currentLevel] - currentPoints
+      const coinsNeeded = pointsNeeded * 1000
+      replyMsg += `\n⚡ Điểm Tích Lũy Ở Cấp Hiện Tại: **${currentPoints.toLocaleString()} / ${COST_TABLE[currentLevel].toLocaleString()}** Điểm`
+      replyMsg += `\n\n📈 Cần thêm **${pointsNeeded.toLocaleString()} điểm** (${coinsNeeded.toLocaleString()} Coins) nữa để thăng cấp lên **${RANK_NAMES[currentLevel + 1]}**.`
     }
 
     const embed = new EmbedBuilder()
@@ -149,10 +164,12 @@ export async function handleRankCommand(message, args) {
       else if (index === 2) icon = '🥉'
       else icon = '🏅'
 
-      const rankName = RANK_NAMES[user.rankLevel || 0]
+      const rankLevelInfo = user.rankLevel || 0
+      const rankName = RANK_NAMES[rankLevelInfo]
+      const rankIcon = getRankIcon(rankLevelInfo)
       const points = (user.rankPoints || 0).toLocaleString()
 
-      boardContent += `${icon} **#${index + 1}** ${user.username}\nCảnh Giới: **${rankName}** - Điểm Dư: **${points}**\n\n`
+      boardContent += `${icon} **#${index + 1} - ${user.username}**\n╰ ${rankIcon} ${rankName} - ${points} Điểm\n\n`
     })
 
     const embed = new EmbedBuilder()
@@ -160,6 +177,7 @@ export async function handleRankCommand(message, args) {
       .setColor('#2C2F33')
       .setDescription(boardContent)
       .setFooter({ text: 'Dùng !rank up để có tên trên bảng vàng!' })
+      .setTimestamp()
 
     return message.reply({ embeds: [embed] })
   }

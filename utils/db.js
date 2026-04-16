@@ -394,7 +394,7 @@ export async function getTopRanks(limit = 10) {
     return await User.find({ $or: [{ rankLevel: { $gt: 0 } }, { rankPoints: { $gt: 0 } }] })
       .sort({ rankLevel: -1, rankPoints: -1 })
       .limit(limit)
-      .select('username rankLevel rankPoints -_id')
+      .select('userId username rankLevel rankPoints -_id')
       .lean()
   } catch (e) {
     return []

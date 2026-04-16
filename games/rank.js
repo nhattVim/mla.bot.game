@@ -157,7 +157,8 @@ export async function handleRankCommand(message, args) {
     }
 
     let boardContent = ''
-    topUsers.forEach((user, index) => {
+    for (let index = 0; index < topUsers.length; index++) {
+      const user = topUsers[index]
       let icon = ''
       if (index === 0) icon = '🥇'
       else if (index === 1) icon = '🥈'
@@ -169,8 +170,20 @@ export async function handleRankCommand(message, args) {
       const rankIcon = getRankIcon(rankLevelInfo)
       const points = (user.rankPoints || 0).toLocaleString()
 
-      boardContent += `${icon} **#${index + 1} - ${user.username}**\n╰ ${rankIcon} ${rankName} - ${points} Điểm\n\n`
-    })
+      let displayName = user.username
+      if (message.guild && user.userId) {
+        try {
+          const member = message.guild.members.cache.get(user.userId) || await message.guild.members.fetch(user.userId).catch(() => null)
+          if (member) {
+            displayName = member.displayName
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      boardContent += `${icon} **#${index + 1} - ${displayName}**\n╰ ${rankIcon} ${rankName} - ${points} Điểm\n\n`
+    }
 
     const embed = new EmbedBuilder()
       .setTitle('BXH Rank')

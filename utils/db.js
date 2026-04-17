@@ -97,6 +97,16 @@ export async function getRandomTrivia() {
   }
 }
 
+export async function getRandomTrivias(limit = 10) {
+  if (!isConnected) return []
+  try {
+    return await Trivia.aggregate([{ $sample: { size: limit } }])
+  } catch (error) {
+    console.error('Lỗi khi lấy nhiều Trivia từ DB:', error)
+    return []
+  }
+}
+
 export async function getBalance(userId, username) {
   if (!isConnected) return 1000
   try {

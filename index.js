@@ -15,6 +15,7 @@ import { getUserInventory, getRankData } from './utils/db.js'
 import { checkRobberEvent } from './games/robber.js'
 import { handleRankCommand, RANK_NAMES, getRankIcon } from './games/rank.js'
 import { setupBangChienCommand, handleBangChienInteraction, checkBangChienRoutine, checkBangChienTestRoutine, testGoogleSheetsConnections } from './games/bangchien.js'
+import { handleHoiNhanh } from './games/hoinhanh.js'
 
 dotenv.config()
 
@@ -132,6 +133,10 @@ client.on('messageCreate', async (message) => {
       return await handleBlackjack(message, args)
     }
 
+    if (command === 'hn') {
+      return await handleHoiNhanh(message, args)
+    }
+
     if (command === 'shop' || command === 's') {
       return await handleShop(message, args)
     }
@@ -169,6 +174,7 @@ client.on('messageCreate', async (message) => {
           { name: 'Nối Từ Tiếng Anh', value: '`!noitu start` hoặc `!wc start`\nMở phòng nối tiếng Anh.\n', inline: false },
           { name: 'Nối Từ Tiếng Việt', value: '`!noituvn start` hoặc `!wcvn start`\nMở phòng nối tiếng Việt.\n', inline: false },
           { name: 'Xì Dách', value: '`!xd <Số_tiền>`\nChơi Xì Dách luật Việt Nam với Dealer.\n', inline: false },
+          { name: 'Hỏi Nhanh', value: '`!hn <Số_tiền>`\nTrả lời nhanh 10 câu hỏi trắc nghiệm.\n', inline: false },
           { name: 'Cửa Hàng', value: '`!shop` hoặc `!s`\nMua danh hiệu và vật phẩm.', inline: false },
           { name: 'Kinh Tế', value: '`!give @Người_chơi <Số_tiền>`: Chuyển tiền cho người khác.\n`!anxin @Người_chơi <Số_tiền>`: Yêu cầu người khác cho tiền.', inline: false },
           { name: 'Hệ Thống Tu Vi', value: '`!rank`: Xem thông tin Rank.\n`!rank up <số coin>`: Đổi xu để thăng cấp tu vi.\n`!rank top`: Vinh danh top bảng xếp hạng Chí tôn.', inline: false }

@@ -132,7 +132,7 @@ export async function handleRankCommand(message, args) {
     }
 
     if (currentLevel === 33) {
-      replyMsg += `\n🔮 **Tu Vi Vô Dận:** **${currentPoints.toLocaleString()}** Điểm`
+      replyMsg += `\n🔮 **Tu Vi:** **${currentPoints.toLocaleString()}** Điểm`
     } else {
       const pointsNeeded = COST_TABLE[currentLevel] - currentPoints
       const coinsNeeded = pointsNeeded * 1000

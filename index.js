@@ -14,6 +14,7 @@ import { handleWordChainVnCommand, handleWordChainVnMessage, restoreActiveGamesV
 import { getUserInventory, getRankData } from './utils/db.js'
 import { checkRobberEvent } from './games/robber.js'
 import { handleRankCommand, RANK_NAMES, getRankIcon } from './games/rank.js'
+import { setupBangChienCommand, handleBangChienInteraction, checkBangChienRoutine, testGoogleSheetsConnections } from './games/bangchien.js'
 
 dotenv.config()
 
@@ -32,6 +33,14 @@ client.once('ready', async () => {
   await restoreActiveGames(activeGamesList)
   await restoreActiveGamesVn(activeGamesList)
   console.log(`[Khôi phục] Đã nạp lại ${activeGamesList.length} phòng Nối Từ đang hoạt động.`)
+  
+  testGoogleSheetsConnections().catch(console.error)
+
+  // Start Bang Chien cycle check
+  checkBangChienRoutine(client).catch(console.error)
+  setInterval(() => {
+    checkBangChienRoutine(client).catch(console.error)
+  }, 60000)
 })
 
 // Handle chat commands (Prefix commands)
@@ -96,6 +105,10 @@ client.on('messageCreate', async (message) => {
 
     if (command === 'dn') {
       return await handleHorseRacing(message, args)
+    }
+
+    if (command === 'set' && args[0] === 'bc') {
+      return await setupBangChienCommand(message, args)
     }
 
     if (command === 'bc') {
@@ -167,6 +180,10 @@ client.on('interactionCreate', async (interaction) => {
   try {
     if (interaction.customId?.startsWith('bet_horse_') || interaction.customId?.startsWith('modal_horse_')) {
       return await handleHorseRacingInteraction(interaction)
+    }
+    
+    if (interaction.customId?.startsWith('bc_')) {
+      return await handleBangChienInteraction(interaction)
     }
 
     if (interaction.customId?.startsWith('bet_bc_') || interaction.customId?.startsWith('modal_bc_') || interaction.customId?.startsWith('bc_host_')) {

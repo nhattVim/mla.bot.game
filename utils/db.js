@@ -53,6 +53,21 @@ const triviaSchema = new mongoose.Schema({
 })
 const Trivia = mongoose.model('Trivia', triviaSchema)
 
+const bangChienSchema = new mongoose.Schema({
+  guildId: { type: String, required: true, unique: true },
+  channelId: { type: String, required: true },
+  sheetLink: { type: String, required: true },
+  sheetId: { type: String, required: true },
+  isActive: { type: Boolean, default: false },
+  roleId: { type: String, default: null },
+  nextStartDate: { type: Date, default: null },
+  currentCycleStart: { type: Date, default: null },
+  usersJoined: { type: [Object], default: [] },
+  weeklyMessageIds: { type: [String], default: [] },
+  lastNotificationDate: { type: Date, default: null }
+})
+const BangChien = mongoose.model('BangChien', bangChienSchema)
+
 export async function seedTriviaIfEmpty(triviaArray) {
   if (!isConnected) return false
   try {
@@ -401,3 +416,70 @@ export async function getTopRanks(limit = 10) {
   }
 }
 
+// ========================
+// HỆ THỐNG BANG CHIẾN
+// ========================
+
+export async function getBangChienConfig(guildId) {
+  if (!isConnected) return null
+  try {
+    return await BangChien.findOne({ guildId })
+  } catch (error) {
+    return null
+  }
+}
+
+export async function setBangChienConfig(guildId, configData) {
+  if (!isConnected) return null
+  try {
+    return await BangChien.findOneAndUpdate(
+      { guildId },
+      { $set: configData },
+      { upsert: true, returnDocument: 'after' }
+    )
+  } catch (error) {
+    console.error('Lỗi setBangChienConfig:', error)
+    return null
+  }
+}
+
+export async function updateBangChienUser(guildId, userData) {
+  if (!isConnected) return false
+  try {
+    const config = await BangChien.findOne({ guildId })
+    if (!config) return false
+    
+    const userIndex = config.usersJoined.findIndex(u => u.userId === userData.userId)
+    if (userIndex >= 0) {
+      config.usersJoined[userIndex] = { ...config.usersJoined[userIndex], ...userData }
+    } else {
+      config.usersJoined.push(userData)
+    }
+    
+    config.markModified('usersJoined')
+    await config.save()
+    return true
+  } catch (error) {
+    console.error('Lỗi updateBangChienUser:', error)
+    return false
+  }
+}
+
+export async function clearBangChienUsersAndMessages(guildId) {
+  if (!isConnected) return false
+  try {
+    await BangChien.findOneAndUpdate({ guildId }, { $set: { usersJoined: [], weeklyMessageIds: [] } })
+    return true
+  } catch (e) {
+    return false
+  }
+}
+
+export async function getAllBangChienConfigs() {
+   if (!isConnected) return []
+   try {
+      return await BangChien.find()
+   } catch(e) {
+      return []
+   }
+}

@@ -1,11 +1,11 @@
-import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js'
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionsBitField } from 'discord.js'
 import { getBangChienConfig, setBangChienConfig, updateBangChienUser, clearBangChienUsersAndMessages, getAllBangChienConfigs } from '../utils/db.js'
 import { syncUserRow, clearSheetData, writeHeartbeatInfo } from '../utils/googleSheets.js'
 
 const ROLE_NAME = '🔥 Bang Chiến'
 
 async function getOrCreateRole(guild) {
-  let role = guild.roles.cache.find(r => r.name === ROLE_NAME)
+  let role = guild.roles.cache.find((r) => r.name === ROLE_NAME)
   if (!role) {
     try {
       role = await guild.roles.create({
@@ -36,13 +36,7 @@ export async function setupBangChienCommand(message, args) {
       return message.reply('❌ Bạn cần quyền Quản Lý Máy Chủ để dùng lệnh này!')
     }
 
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('bc_setup_link')
-        .setLabel('Nhập Link Google Sheets (Bảo mật)')
-        .setStyle(ButtonStyle.Primary)
-        .setEmoji('🔒')
-    )
+    const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('bc_setup_link').setLabel('Nhập Link Google Sheets (Bảo mật)').setStyle(ButtonStyle.Primary).setEmoji('🔒'))
 
     return message.reply({
       content: 'Vui lòng nhấn nút bên dưới để nhập link file Google Sheet, đảm bảo bạn đã cấp quyền chỉnh sửa file Google Sheet cho email sau `bot-bang-chien@mlabot-sheets.iam.gserviceaccount.com`:',
@@ -53,9 +47,7 @@ export async function setupBangChienCommand(message, args) {
     if (!message.member.permissions.has('Administrator') && !message.member.permissions.has('ManageGuild')) {
       return message.reply('❌ Bạn cần quyền Quản Lý Máy Chủ để dùng lệnh này!')
     }
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('bc_test_setup_link').setLabel('Thiết lập Test 2 Tuần (Bảo mật)').setStyle(ButtonStyle.Danger).setEmoji('🛠️')
-    )
+    const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('bc_test_setup_link').setLabel('Thiết lập Test 2 Tuần (Bảo mật)').setStyle(ButtonStyle.Danger).setEmoji('🛠️'))
     return message.reply({
       content: 'Vui lòng nhấn nút bên dưới để nhập link file Google Sheet (Chế độ Test 2 Lượt). Nhớ cấp quyền cho email:\n`bot-bang-chien@mlabot-sheets.iam.gserviceaccount.com`',
       components: [row]
@@ -72,9 +64,7 @@ export async function handleBangChienInteraction(interaction) {
         return interaction.reply({ content: '❌ Bạn cần quyền Quản Lý Máy Chủ để thực hiện thao tác này!', ephemeral: true })
       }
 
-      const modal = new ModalBuilder()
-        .setCustomId('bc_modal_setup_link')
-        .setTitle('Cấu hình File Google Sheets')
+      const modal = new ModalBuilder().setCustomId('bc_modal_setup_link').setTitle('Cấu hình File Google Sheets')
 
       const linkInput = new TextInputBuilder()
         .setCustomId('bc_sheet_link')
@@ -92,9 +82,7 @@ export async function handleBangChienInteraction(interaction) {
         return interaction.reply({ content: '❌ Bạn cần quyền Quản Lý Máy Chủ để thực hiện thao tác này!', ephemeral: true })
       }
 
-      const modal = new ModalBuilder()
-        .setCustomId('bc_modal_test_link')
-        .setTitle('Cấu hình File Test Google Sheets')
+      const modal = new ModalBuilder().setCustomId('bc_modal_test_link').setTitle('Cấu hình File Test Google Sheets')
 
       const linkInput = new TextInputBuilder()
         .setCustomId('bc_sheet_link')
@@ -108,21 +96,11 @@ export async function handleBangChienInteraction(interaction) {
     }
 
     if (interaction.customId === 'bc_join') {
-      const modal = new ModalBuilder()
-        .setCustomId('bc_modal_join')
-        .setTitle('Báo Danh Bang Chiến')
+      const modal = new ModalBuilder().setCustomId('bc_modal_join').setTitle('Báo Danh Bang Chiến')
 
-      const ingameInput = new TextInputBuilder()
-        .setCustomId('bc_ingame_name')
-        .setLabel('Tên Ingame của bạn:')
-        .setStyle(TextInputStyle.Short)
-        .setRequired(true)
+      const ingameInput = new TextInputBuilder().setCustomId('bc_ingame_name').setLabel('Tên Ingame của bạn:').setStyle(TextInputStyle.Short).setRequired(true)
 
-      const noteInput = new TextInputBuilder()
-        .setCustomId('bc_note')
-        .setLabel('Nguyện vọng/Ghi chú (Không bắt buộc):')
-        .setStyle(TextInputStyle.Paragraph)
-        .setRequired(false)
+      const noteInput = new TextInputBuilder().setCustomId('bc_note').setLabel('Nguyện vọng/Ghi chú (Không bắt buộc):').setPlaceholder('Ví dụ: Tôi muốn đi cùng với...').setStyle(TextInputStyle.Paragraph).setRequired(false)
 
       const row1 = new ActionRowBuilder().addComponents(ingameInput)
       const row2 = new ActionRowBuilder().addComponents(noteInput)
@@ -131,15 +109,9 @@ export async function handleBangChienInteraction(interaction) {
     }
 
     if (interaction.customId === 'bc_decline') {
-      const modal = new ModalBuilder()
-        .setCustomId('bc_modal_decline')
-        .setTitle('Không Tham Gia Bang Chiến')
+      const modal = new ModalBuilder().setCustomId('bc_modal_decline').setTitle('Không Tham Gia Bang Chiến')
 
-      const reasonInput = new TextInputBuilder()
-        .setCustomId('bc_reason')
-        .setLabel('Lý do vắng mặt (Không bắt buộc):')
-        .setStyle(TextInputStyle.Paragraph)
-        .setRequired(false)
+      const reasonInput = new TextInputBuilder().setCustomId('bc_reason').setLabel('Lý do vắng mặt (Không bắt buộc):').setStyle(TextInputStyle.Paragraph).setRequired(false)
 
       const row1 = new ActionRowBuilder().addComponents(reasonInput)
       modal.addComponents(row1)
@@ -157,18 +129,22 @@ export async function handleBangChienInteraction(interaction) {
       }
       if (!config) return interaction.editReply('Hệ thống chưa thiết lập!')
 
-      const userDoc = config.usersJoined.find(u => u.userId === interaction.user.id)
+      const userDoc = config.usersJoined.find((u) => u.userId === interaction.user.id)
       if (!userDoc || userDoc.status !== 'JOINED') {
         return interaction.editReply('Bạn chưa báo danh Tham Gia, không thể Huỷ!')
       }
 
-      await updateBangChienUser(interaction.guildId, {
-        userId: interaction.user.id,
-        username: interaction.user.username,
-        status: 'CANCELLED',
-        ingameName: userDoc.ingameName,
-        notes: userDoc.notes
-      }, isTestMode)
+      await updateBangChienUser(
+        interaction.guildId,
+        {
+          userId: interaction.user.id,
+          username: interaction.user.username,
+          status: 'CANCELLED',
+          ingameName: userDoc.ingameName,
+          notes: userDoc.notes
+        },
+        isTestMode
+      )
       await syncUserRow(config.sheetId, {
         userId: interaction.user.id,
         username: interaction.user.username,
@@ -224,17 +200,21 @@ export async function handleBangChienInteraction(interaction) {
       targetVnDate.setUTCHours(8, 0, 0, 0)
       const nextStartUTC = new Date(targetVnDate.getTime() - 7 * 60 * 60 * 1000)
 
-      await setBangChienConfig(guildId, {
+      await setBangChienConfig(
         guildId,
-        channelId,
-        sheetLink: link,
-        sheetId,
-        isActive: true,
-        roleId: role.id,
-        nextStartDate: nextStartUTC,
-        usersJoined: [],
-        weeklyMessageIds: []
-      }, false) // isTestMode = false
+        {
+          guildId,
+          channelId,
+          sheetLink: link,
+          sheetId,
+          isActive: true,
+          roleId: role.id,
+          nextStartDate: nextStartUTC,
+          usersJoined: [],
+          weeklyMessageIds: []
+        },
+        false
+      ) // isTestMode = false
 
       try {
         await writeHeartbeatInfo(sheetId)
@@ -261,29 +241,38 @@ export async function handleBangChienInteraction(interaction) {
 
       const sheetId = urlMatch[1]
       let role
-      try { role = await getOrCreateRole(interaction.guild) } 
-      catch (error) { return interaction.editReply(`❌ **LỖI THIẾT LẬP ROLE:** ${error.message}`) }
+      try {
+        role = await getOrCreateRole(interaction.guild)
+      } catch (error) {
+        return interaction.editReply(`❌ **LỖI THIẾT LẬP ROLE:** ${error.message}`)
+      }
 
       // Ghi đè cấu hình mới nhất vào DB BangChienTest
-      await setBangChienConfig(interaction.guildId, {
-        guildId: interaction.guildId,
-        channelId: interaction.channelId,
-        sheetLink: link,
-        sheetId,
-        isActive: true,
-        roleId: role.id,
-        nextStartDate: new Date(Date.now() + 1000), // Bắt đầu test luân phiên ngay sau 1s
-        usersJoined: [],
-        weeklyMessageIds: [],
-        testCyclesCompleted: 0
-      }, true) // isTestMode = true
+      await setBangChienConfig(
+        interaction.guildId,
+        {
+          guildId: interaction.guildId,
+          channelId: interaction.channelId,
+          sheetLink: link,
+          sheetId,
+          isActive: true,
+          roleId: role.id,
+          nextStartDate: new Date(Date.now() + 1000), // Bắt đầu test luân phiên ngay sau 1s
+          usersJoined: [],
+          weeklyMessageIds: [],
+          testCyclesCompleted: 0
+        },
+        true
+      ) // isTestMode = true
 
-      try { await writeHeartbeatInfo(sheetId) } catch (e) { }
+      try {
+        await writeHeartbeatInfo(sheetId)
+      } catch (e) { }
 
-      return interaction.editReply(`✅ **Thiết lập TEST 2 LƯỢT Bang Chiến hoàn tất tại kênh <#${interaction.channelId}>!**\n⚙️ Hệ thống sẽ mô phỏng bắn đạn mỗi phút 1 lần. Kéo dài 2 lượt (tương ứng 2 tuần ảo). Sau khi hoàn tất sẽ xoá Database BangChienTest tự động.`)
+      return interaction.editReply(
+        `✅ **Thiết lập TEST 2 LƯỢT Bang Chiến hoàn tất tại kênh <#${interaction.channelId}>!**\n⚙️ Hệ thống sẽ mô phỏng bắn đạn mỗi phút 1 lần. Kéo dài 2 lượt (tương ứng 2 tuần ảo). Sau khi hoàn tất sẽ xoá Database BangChienTest tự động.`
+      )
     }
-
-
 
     if (interaction.customId === 'bc_modal_join') {
       await interaction.deferReply({ ephemeral: true })
@@ -299,13 +288,17 @@ export async function handleBangChienInteraction(interaction) {
       const ingameName = interaction.fields.getTextInputValue('bc_ingame_name')
       const notes = interaction.fields.getTextInputValue('bc_note')
 
-      await updateBangChienUser(interaction.guildId, {
-        userId: interaction.user.id,
-        username: interaction.user.username,
-        status: 'JOINED',
-        ingameName,
-        notes
-      }, isTestMode)
+      await updateBangChienUser(
+        interaction.guildId,
+        {
+          userId: interaction.user.id,
+          username: interaction.user.username,
+          status: 'JOINED',
+          ingameName,
+          notes
+        },
+        isTestMode
+      )
       await syncUserRow(config.sheetId, {
         userId: interaction.user.id,
         username: interaction.user.username,
@@ -323,7 +316,8 @@ export async function handleBangChienInteraction(interaction) {
           if (!role) role = await getOrCreateRole(interaction.guild)
         } else {
           role = await getOrCreateRole(interaction.guild)
-          config.roleId = role.id; await config.save()
+          config.roleId = role.id
+          await config.save()
         }
         await member.roles.add(role)
       } catch (e) {
@@ -346,12 +340,16 @@ export async function handleBangChienInteraction(interaction) {
 
       const notes = interaction.fields.getTextInputValue('bc_reason')
 
-      await updateBangChienUser(interaction.guildId, {
-        userId: interaction.user.id,
-        username: interaction.user.username,
-        status: 'NOT_JOINING',
-        notes
-      }, isTestMode)
+      await updateBangChienUser(
+        interaction.guildId,
+        {
+          userId: interaction.user.id,
+          username: interaction.user.username,
+          status: 'NOT_JOINING',
+          notes
+        },
+        isTestMode
+      )
       const isOk = await syncUserRow(config.sheetId, {
         userId: interaction.user.id,
         username: interaction.user.username,
@@ -386,9 +384,7 @@ export async function checkBangChienRoutine(client) {
     let hasNotifiedToday = false
     if (lastNoti) {
       const vnLastNoti = new Date(lastNoti.getTime() + 7 * 60 * 60 * 1000)
-      if (vnLastNoti.getUTCFullYear() === vnNow.getUTCFullYear() &&
-        vnLastNoti.getUTCMonth() === vnNow.getUTCMonth() &&
-        vnLastNoti.getUTCDate() === vnNow.getUTCDate()) {
+      if (vnLastNoti.getUTCFullYear() === vnNow.getUTCFullYear() && vnLastNoti.getUTCMonth() === vnNow.getUTCMonth() && vnLastNoti.getUTCDate() === vnNow.getUTCDate()) {
         hasNotifiedToday = true
       }
     }
@@ -408,11 +404,9 @@ export async function checkBangChienRoutine(client) {
           for (let msgId of config.weeklyMessageIds) {
             try {
               const msg = await channel.messages.fetch(msgId)
-              const disabledRow = new ActionRowBuilder().addComponents(
-                msg.components[0].components.map(c => ButtonBuilder.from(c).setDisabled(true))
-              )
+              const disabledRow = new ActionRowBuilder().addComponents(msg.components[0].components.map((c) => ButtonBuilder.from(c).setDisabled(true)))
               await msg.edit({ components: [disabledRow] })
-            } catch (e) {}
+            } catch (e) { }
           }
         }
       }
@@ -422,9 +416,14 @@ export async function checkBangChienRoutine(client) {
       if (vnDayOfWeek === 1) {
         tags = '@everyone'
       } else {
-        const joinedIds = config.usersJoined.map(u => u.userId)
-        const missingMembers = guild.members.cache.filter(m => !m.user.bot && !joinedIds.includes(m.id))
-        tags = missingMembers.map(m => `<@${m.id}>`).join(' ')
+        const joinedIds = config.usersJoined.map((u) => u.userId)
+        const missingMembers = guild.members.cache.filter((m) => {
+          if (m.user.bot) return false
+          if (joinedIds.includes(m.id)) return false
+          const perms = channel.permissionsFor(m)
+          return perms && perms.has(PermissionsBitField.Flags.ViewChannel)
+        })
+        tags = missingMembers.map((m) => `<@${m.id}>`).join(' ')
       }
 
       if (tags.length === 0 && vnDayOfWeek !== 1) {
@@ -438,25 +437,36 @@ export async function checkBangChienRoutine(client) {
         new ButtonBuilder().setCustomId('bc_cancel').setLabel('Huỷ Tham Gia (Đã đk)').setStyle(ButtonStyle.Secondary)
       )
 
+      let embedDesc = ''
+      if (tags === '@everyone') {
+        embedDesc = `Mọi người ơi vào báo danh tham gia Bang chiến !\n\n${tags}\n\nHi vọng mọi người dành ra 30s để báo danh bang chiên. Nhằm để đương gia xếp team !`
+      } else {
+        embedDesc = `Các bạn ${tags} hi vọng các bạn bỏ ra một tí thời gian để báo danh bang chiến, không tham gia được vẫn báo để đương gia xếp team. Cảm ơn mọi người nhiều !`
+      }
+
       const embed = new EmbedBuilder()
         .setColor('#FFA500')
         .setTitle('📢 ĐIỂM DANH BANG CHIẾN')
-        .setDescription(`Yêu cầu mọi người vào báo danh tham gia Bang chiến!\n\n${tags}`)
+        .setDescription(embedDesc)
 
       const sentMsg = await channel.send({ content: tags.substring(0, 1500), embeds: [embed], components: [row] })
 
       config.weeklyMessageIds = config.weeklyMessageIds || []
       config.weeklyMessageIds.push(sentMsg.id)
 
-      await setBangChienConfig(config.guildId, {
-        weeklyMessageIds: config.weeklyMessageIds,
-        lastNotificationDate: now
-      }, false)
+      await setBangChienConfig(
+        config.guildId,
+        {
+          weeklyMessageIds: config.weeklyMessageIds,
+          lastNotificationDate: now
+        },
+        false
+      )
     }
 
     if (vnDayOfWeek === 0 && vnHour >= 23) {
       const lastReset = config.currentCycleStart
-      if (!lastReset || (now - lastReset) > 24 * 60 * 60 * 1000) {
+      if (!lastReset || now - lastReset > 24 * 60 * 60 * 1000) {
         await clearSheetData(config.sheetId)
         await clearBangChienUsersAndMessages(config.guildId, false)
 
@@ -465,7 +475,7 @@ export async function checkBangChienRoutine(client) {
             await guild.members.fetch()
             const role = guild.roles.cache.get(config.roleId)
             if (role) {
-              guild.members.cache.forEach(m => {
+              guild.members.cache.forEach((m) => {
                 if (m.roles.cache.has(role.id)) m.roles.remove(role.id)
               })
             }
@@ -476,11 +486,15 @@ export async function checkBangChienRoutine(client) {
         const daysToMon = 8 - vnDayOfWeek
         nm.setUTCDate(nm.getUTCDate() + daysToMon)
         nm.setUTCHours(8, 0, 0, 0)
-        await setBangChienConfig(config.guildId, {
-          currentCycleStart: now,
-          nextStartDate: new Date(nm.getTime() - 7 * 60 * 60 * 1000),
-          isActive: true
-        }, false)
+        await setBangChienConfig(
+          config.guildId,
+          {
+            currentCycleStart: now,
+            nextStartDate: new Date(nm.getTime() - 7 * 60 * 60 * 1000),
+            isActive: true
+          },
+          false
+        )
       }
     }
   }
@@ -511,11 +525,9 @@ export async function checkBangChienTestRoutine(client) {
         for (let msgId of config.weeklyMessageIds) {
           try {
             const msg = await channel.messages.fetch(msgId)
-            const disabledRow = new ActionRowBuilder().addComponents(
-              msg.components[0].components.map(c => ButtonBuilder.from(c).setDisabled(true))
-            )
+            const disabledRow = new ActionRowBuilder().addComponents(msg.components[0].components.map((c) => ButtonBuilder.from(c).setDisabled(true)))
             await msg.edit({ components: [disabledRow] })
-          } catch (e) {}
+          } catch (e) { }
         }
       }
 
@@ -524,18 +536,27 @@ export async function checkBangChienTestRoutine(client) {
       if (iterations === 0) {
         tags = '@everyone'
       } else {
-        const joinedIds = config.usersJoined.map(u => u.userId)
-        const missingMembers = guild.members.cache.filter(m => !m.user.bot && !joinedIds.includes(m.id))
-        tags = missingMembers.map(m => `<@${m.id}>`).join(' ')
+        const joinedIds = config.usersJoined.map((u) => u.userId)
+        const missingMembers = guild.members.cache.filter((m) => {
+          if (m.user.bot) return false
+          if (joinedIds.includes(m.id)) return false
+          const perms = channel.permissionsFor(m)
+          return perms && perms.has(PermissionsBitField.Flags.ViewChannel)
+        })
+        tags = missingMembers.map((m) => `<@${m.id}>`).join(' ')
       }
 
       if (tags.length === 0 && iterations !== 0) {
         config.weeklyMessageIds = config.weeklyMessageIds || []
         config.weeklyMessageIds.push('dummy_' + Date.now())
-        await setBangChienConfig(config.guildId, {
-          weeklyMessageIds: config.weeklyMessageIds,
-          nextStartDate: new Date(now.getTime() + 60000)
-        }, true)
+        await setBangChienConfig(
+          config.guildId,
+          {
+            weeklyMessageIds: config.weeklyMessageIds,
+            nextStartDate: new Date(now.getTime() + 60000)
+          },
+          true
+        )
         continue
       }
 
@@ -545,54 +566,70 @@ export async function checkBangChienTestRoutine(client) {
         new ButtonBuilder().setCustomId('bc_cancel').setLabel('Huỷ Tham Gia (Đã đk)').setStyle(ButtonStyle.Secondary)
       )
 
+      let embedDesc = ''
+      if (tags === '@everyone') {
+        embedDesc = `Mọi người ơi vào báo danh tham gia Bang chiến !\n\n${tags}\n\nHi vọng mọi người dành ra 30s để báo danh bang chiên. Nhằm để đương gia xếp team !`
+      } else {
+        embedDesc = `Các bạn ${tags} hi vọng các bạn bỏ ra một tí thời gian để báo danh bang chiến, không tham gia được vẫn báo để đương gia xếp team. Cảm ơn mọi người nhiều !`
+      }
+
       const embed = new EmbedBuilder()
         .setColor('#FFA500')
         .setTitle(`📢 ĐIỂM DANH BANG CHIẾN (TEST Tuần ${testCyclesCompleted + 1} - Lần ${iterations + 1}/5)`)
-        .setDescription(`Yêu cầu mọi người báo danh tham gia Bang chiến!\n\n${tags}`)
+        .setDescription(embedDesc)
 
       try {
         const sentMsg = await channel.send({ content: tags.substring(0, 1500), embeds: [embed], components: [row] })
         config.weeklyMessageIds = config.weeklyMessageIds || []
         config.weeklyMessageIds.push(sentMsg.id)
-        
-        await setBangChienConfig(config.guildId, {
-          weeklyMessageIds: config.weeklyMessageIds,
-          nextStartDate: new Date(now.getTime() + 60000)
-        }, true)
+
+        await setBangChienConfig(
+          config.guildId,
+          {
+            weeklyMessageIds: config.weeklyMessageIds,
+            nextStartDate: new Date(now.getTime() + 60000)
+          },
+          true
+        )
       } catch (err) {
         console.error(`Lỗi channel.send TestMode:`, err.message)
       }
-
     } else {
       await channel.send(`🛑 **[KẾT THÚC TUẦN ${testCyclesCompleted + 1}]** Đã hoàn tất 5 lần gọi báo danh! Bắt đầu lệnh RESET xoá Excel và thu hồi Role...`)
-      
+
       await clearSheetData(config.sheetId)
       await clearBangChienUsersAndMessages(config.guildId, true)
-      
+
       if (config.roleId) {
         try {
           await guild.members.fetch()
           const role = guild.roles.cache.get(config.roleId)
           if (role) {
-            guild.members.cache.forEach(m => {
+            guild.members.cache.forEach((m) => {
               if (m.roles.cache.has(role.id)) m.roles.remove(role.id)
             })
           }
-        } catch(e) {}
+        } catch (e) { }
       }
 
       if (testCyclesCompleted >= 1) {
         await channel.send(`✅ **[HOÀN TẤT CHUỖI TEST]** Đã hoàn thành mô phỏng 2 Tuần! Database cấu hình Test cho Server này đã bị xoá. Để test lại, dùng lệnh \`!set bc test channel\` lần nữa.`)
-        import('../utils/db.js').then(module => {
+        import('../utils/db.js')
+          .then((module) => {
             module.deleteBangChienConfig(config.guildId, true).catch(console.error)
-        }).catch(console.error)
+          })
+          .catch(console.error)
       } else {
-        await setBangChienConfig(config.guildId, {
-          testCyclesCompleted: testCyclesCompleted + 1,
-          nextStartDate: new Date(now.getTime() + 60000),
-          weeklyMessageIds: [],
-          usersJoined: []
-        }, true)
+        await setBangChienConfig(
+          config.guildId,
+          {
+            testCyclesCompleted: testCyclesCompleted + 1,
+            nextStartDate: new Date(now.getTime() + 60000),
+            weeklyMessageIds: [],
+            usersJoined: []
+          },
+          true
+        )
       }
     }
   }

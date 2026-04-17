@@ -64,7 +64,8 @@ const bangChienSchema = new mongoose.Schema({
   currentCycleStart: { type: Date, default: null },
   usersJoined: { type: [Object], default: [] },
   weeklyMessageIds: { type: [String], default: [] },
-  lastNotificationDate: { type: Date, default: null }
+  lastNotificationDate: { type: Date, default: null },
+  testCyclesCompleted: { type: Number, default: 0 }
 })
 
 const BangChien = mongoose.model('BangChien', bangChienSchema)

@@ -395,19 +395,13 @@ export async function checkBangChienRoutine(client) {
     if (!channel) continue
 
     if (vnDayOfWeek >= 1 && vnDayOfWeek <= 6 && vnHour >= 8 && !hasNotifiedToday) {
-      if (vnDayOfWeek === 1) {
-        await clearBangChienUsersAndMessages(config.guildId, false)
-        config.usersJoined = []
-        config.weeklyMessageIds = []
-      } else {
-        if (config.weeklyMessageIds && config.weeklyMessageIds.length > 0) {
-          for (let msgId of config.weeklyMessageIds) {
-            try {
-              const msg = await channel.messages.fetch(msgId)
-              const disabledRow = new ActionRowBuilder().addComponents(msg.components[0].components.map((c) => ButtonBuilder.from(c).setDisabled(true)))
-              await msg.edit({ components: [disabledRow] })
-            } catch (e) { }
-          }
+      if (config.weeklyMessageIds && config.weeklyMessageIds.length > 0) {
+        for (let msgId of config.weeklyMessageIds) {
+          try {
+            const msg = await channel.messages.fetch(msgId)
+            const disabledRow = new ActionRowBuilder().addComponents(msg.components[0].components.map((c) => ButtonBuilder.from(c).setDisabled(true)))
+            await msg.edit({ components: [disabledRow] })
+          } catch (e) { }
         }
       }
 

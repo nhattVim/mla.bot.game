@@ -14,12 +14,12 @@ import { handleWordChainVnCommand, handleWordChainVnMessage, restoreActiveGamesV
 import { getUserInventory, getRankData } from './utils/db.js'
 import { checkRobberEvent } from './games/robber.js'
 import { handleRankCommand, RANK_NAMES, getRankIcon } from './games/rank.js'
-import { setupBangChienCommand, handleBangChienInteraction, checkBangChienRoutine, testGoogleSheetsConnections } from './games/bangchien.js'
+import { setupBangChienCommand, handleBangChienInteraction, checkBangChienRoutine, checkBangChienTestRoutine, testGoogleSheetsConnections } from './games/bangchien.js'
 
 dotenv.config()
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers],
   partials: [Partials.Channel, Partials.Message]
 })
 
@@ -40,7 +40,13 @@ client.once('ready', async () => {
   checkBangChienRoutine(client).catch(console.error)
   setInterval(() => {
     checkBangChienRoutine(client).catch(console.error)
-  }, 60000)
+  }, 60000) // 1 phút
+
+  // Start Bang Chien Test cycle check
+  checkBangChienTestRoutine(client).catch(console.error)
+  setInterval(() => {
+    checkBangChienTestRoutine(client).catch(console.error)
+  }, 60000) // 1 phút
 })
 
 // Handle chat commands (Prefix commands)
